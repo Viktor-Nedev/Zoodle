@@ -524,7 +524,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       print("Грешка при изпращане на съобщение: $e");
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -532,6 +531,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       appBar: AppBar(
         backgroundColor: Colors.green[500],
         foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
