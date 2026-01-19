@@ -1,5 +1,13 @@
+import 'package:uuid/uuid.dart';
+import 'dart:io';
+import 'package:Zoodle/data/animal_repository.dart';
+import 'package:camera/camera.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'dart:math';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:Zoodle/services/gemini_service.dart';
 
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -9,9 +17,13 @@ class CameraPage extends StatefulWidget {
 }
 
 class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateMixin {
+  CameraController? _controller;
   late AnimationController _animationController;
   bool _isScanning = false;
-  bool _showResult = false;
+  bool _isProcessing = false;
+  
+  // Gemini Service
+  final GeminiService _geminiService = GeminiService();
 
   @override
   void initState() {
@@ -20,265 +32,281 @@ class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateM
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
+    _initializeCamera();
+  }
+
+  // ... (dispose and camera init remain same)
+  Future<void> _initializeCamera() async {
+    final status = await Permission.camera.request();
+    if (status.isGranted) {
+      try {
+        final cameras = await availableCameras();
+        if (cameras.isNotEmpty) {
+          _controller = CameraController(
+            cameras.first,
+            ResolutionPreset.high,
+            enableAudio: false,
+          );
+          await _controller!.initialize();
+          if (mounted) setState(() {});
+        }
+      } catch (e) {
+        debugPrint('Error initializing camera: $e');
+      }
+    }
   }
 
   @override
   void dispose() {
+    _controller?.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
-  void _startScanning() async {
+  Future<void> _takePictureAndAnalyze() async {
+    if (_controller == null || !_controller!.value.isInitialized || _isProcessing) return;
+
     setState(() {
       _isScanning = true;
+      _isProcessing = true;
     });
-    
     _animationController.reset();
-    _animationController.forward();
+    _animationController.repeat(); 
 
-    // Симулиране на AI анализ (3 секунди)
-    await Future.delayed(const Duration(seconds: 3));
+    try {
+      final XFile image = await _controller!.takePicture();
+      final File imageFile = File(image.path);
 
-    setState(() {
-      _isScanning = false;
-      _showResult = true;
-    });
+      // Analyze with Gemini
+      final animalData = await _geminiService.analyzeImage(imageFile);
+      
+      _animationController.stop();
+      _animationController.value = 1.0; 
 
-    // Показване на резултатите
-    _showAnimalInfo();
+      if (mounted) {
+        if (animalData != null) {
+           _showResult(imageFile, animalData);
+        } else {
+           _showErrorSnackBar('Не разпознахме животно на снимката. Опитайте пак!');
+        }
+      }
+
+    } catch (e) {
+       debugPrint('Error: $e');
+       _animationController.stop();
+       if (mounted) {
+        _showErrorSnackBar('Грешка: $e');
+       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isScanning = false;
+          _isProcessing = false;
+        });
+      }
+    }
   }
 
-  void _showAnimalInfo() {
+  void _showResult(File imageFile, AnimalData animalData) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => AnimalInfoSheet(
-        onSave: () {
-          setState(() {
-            _showResult = false;
-          });
-          Navigator.pop(context);
-          _showSuccessSnackbar();
-        },
+        imageFile: imageFile,
+        animalData: animalData,
+        onSave: () => _saveToProfile(imageFile, animalData),
       ),
     );
   }
 
+
+  Future<void> _saveToProfile(File imageFile, AnimalData data) async {
+    try {
+       final user = FirebaseAuth.instance.currentUser;
+       if (user == null) {
+         ScaffoldMessenger.of(context).showSnackBar(
+           const SnackBar(content: Text('Моля влезте в профила си, за да запазите.')),
+         );
+         return;
+       }
+
+       Navigator.pop(context); 
+       
+       ScaffoldMessenger.of(context).showSnackBar(
+         const SnackBar(content: Text('Записване...')),
+       );
+
+       final uuid = Uuid().v4();
+       final storageRef = FirebaseStorage.instance
+           .ref()
+           .child('users/${user.uid}/animals/$uuid.jpg');
+
+       await storageRef.putFile(imageFile);
+       final downloadUrl = await storageRef.getDownloadURL();
+
+       await FirebaseFirestore.instance
+           .collection('users')
+           .doc(user.uid)
+           .collection('album')
+           .add({
+             'imageUrl': downloadUrl,
+             'animalType': data.localName,
+             'breed': data.breed,
+             'timestamp': FieldValue.serverTimestamp(),
+             'isRedBook': data.isRedBook,
+             'description': data.description,
+           });
+
+       if (mounted) {
+         _showSuccessSnackbar();
+       }
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text('Грешка при запис: $e')),
+         );
+      }
+    }
+  }
+
   void _showSuccessSnackbar() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: Colors.green[400],
-        content: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 8),
-            Text('Снимката е запазена в албума!', style: TextStyle(color: Colors.white)),
-          ],
+    if (!mounted) return;
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.green[400],
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Снимката е запазена в албума!', style: TextStyle(color: Colors.white)),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      debugPrint('Snackbar error: $e');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (e) {
+      debugPrint('Snackbar error: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.green[50],
-      appBar: AppBar(
-        title: const Text(
-          'AI Камера',
-          style: TextStyle(
-            color: Colors.green,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.green),
-      ),
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Камера преглед (симулиран)
-          Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.green[100]!,
-                  Colors.green[50]!,
-                  Colors.white,
-                ],
-              ),
-            ),
-            child: Column(
+          // Camera Preview (Full Screen)
+          if (_controller != null && _controller!.value.isInitialized)
+            SizedBox.expand(
+               child: CameraPreview(_controller!),
+            )
+          else
+            const Center(child: CircularProgressIndicator(color: Colors.green)),
+
+          // Overlay Elements
+          SafeArea(
+            child: Stack(
               children: [
-                const SizedBox(height: 40),
-                
-                // Рамка на камерата
-                Container(
-                  width: 300,
-                  height: 400,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    color: Colors.black,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.green.withOpacity(0.3),
-                        blurRadius: 20,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    children: [
-                      // Симулирана камера
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                 // Header (Zoodle AI) - Top Center
+                 Align(
+                   alignment: Alignment.topCenter,
+                   child: Padding(
+                     padding: const EdgeInsets.only(top: 16.0),
+                     child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(color: Colors.greenAccent.withOpacity(0.5)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.pets,
-                              size: 80,
-                              color: Colors.green[300],
-                            ),
-                            const SizedBox(height: 16),
+                            Icon(Icons.auto_awesome, color: Colors.greenAccent, size: 20),
+                            SizedBox(width: 8),
                             Text(
-                              'Насочете камерата към животното',
+                              'Zoodle AI',
                               style: TextStyle(
-                                color: Colors.green[200],
+                                color: Colors.white, 
+                                fontWeight: FontWeight.bold,
                                 fontSize: 16,
+                                letterSpacing: 1.2
                               ),
-                              textAlign: TextAlign.center,
                             ),
                           ],
                         ),
                       ),
-                      
-                      // Анимация за сканиране
-                      if (_isScanning) _buildScanAnimation(),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 40),
-                
-                // Информация за сканиране
-                AnimatedOpacity(
-                  duration: const Duration(milliseconds: 300),
-                  opacity: _isScanning ? 1.0 : 0.0,
-                  child: Column(
-                    children: [
-                      _buildScanningAnimation(),
-                      const SizedBox(height: 16),
-                      Text(
-                        'AI анализира животното...',
-                        style: TextStyle(
-                          color: Colors.green[800],
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
+                   ),
+                 ),
+
+                // Controls
+                Align(
+                   alignment: Alignment.bottomCenter,
+                   child: Padding(
+                     padding: const EdgeInsets.only(bottom: 50),
+                     child: GestureDetector(
+                       onTap: _takePictureAndAnalyze,
+                       child: Container(
+                         width: 80,
+                         height: 80,
+                         decoration: BoxDecoration(
+                           shape: BoxShape.circle,
+                           border: Border.all(color: Colors.white, width: 4),
+                           color: Colors.white24,
+                           boxShadow: [
+                             BoxShadow(
+                               color: Colors.black26,
+                               blurRadius: 10,
+                               spreadRadius: 2,
+                             )
+                           ]
+                         ),
+                         child: Center(
+                           child: Container(
+                             width: 60,
+                             height: 60,
+                             decoration: const BoxDecoration(
+                               shape: BoxShape.circle,
+                               color: Colors.white,
+                             ),
+                             child: _isProcessing 
+                               ? const Padding(
+                                   padding: EdgeInsets.all(16.0),
+                                   child: CircularProgressIndicator(color: Colors.green, strokeWidth: 2),
+                                 )
+                               : const Icon(Icons.camera_alt, color: Colors.black, size: 30),
+                           ),
+                         ),
+                       ),
+                     ),
+                   ),
                 ),
               ],
             ),
           ),
           
-          // Бутон за снимане
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                Container(
-                  width: 70,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.green.withOpacity(0.5),
-                        blurRadius: 10,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                    border: Border.all(
-                      color: Colors.green,
-                      width: 3,
-                    ),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.camera_alt,
-                      size: 32,
-                      color: Colors.green,
-                    ),
-                    onPressed: _isScanning ? null : _startScanning,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Натиснете за сканиране',
-                  style: TextStyle(
-                    color: Colors.green[700],
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScanAnimation() {
-    return AnimatedBuilder(
-      animation: _animationController,
-      builder: (context, child) {
-        return CustomPaint(
-          painter: ScanPainter(_animationController.value),
-          size: const Size(300, 400),
-        );
-      },
-    );
-  }
-
-  Widget _buildScanningAnimation() {
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.green[100],
-        shape: BoxShape.circle,
-      ),
-      child: Stack(
-        children: [
-          Center(
-            child: Icon(
-              Icons.pets,
-              size: 40,
-              color: Colors.green,
-            ),
-          ),
-          AnimatedBuilder(
-            animation: _animationController,
-            builder: (context, child) {
-              return CircularProgressIndicator(
-                value: _animationController.value,
-                backgroundColor: Colors.green[100],
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-                strokeWidth: 3,
-              );
-            },
-          ),
+           // Full Screen Scanning Animation Overlay (On top of everything)
+           if (_isScanning)
+             Positioned.fill(
+               child: IgnorePointer( // Allow clicks to pass through if needed, though usually we want to block
+                 child: CustomPaint(
+                   painter: ScanPainter(_animationController.value),
+                 ),
+               ),
+             ),
         ],
       ),
     );
@@ -292,200 +320,206 @@ class ScanPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.green
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
+    if (progress == 0) return;
 
-    // Сканираща линия
-    final scanLineY = size.height * progress;
+    final paint = Paint()
+      ..color = Colors.greenAccent
+      ..strokeWidth = 3 // Thicker for visibility
+      ..style = PaintingStyle.stroke
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 4); // Glow
+
+    final scanY = size.height * progress;
+    
+    // Scan line
     canvas.drawLine(
-      Offset(0, scanLineY),
-      Offset(size.width, scanLineY),
+      Offset(0, scanY),
+      Offset(size.width, scanY),
       paint,
     );
-
-    // Пулсиращи ъгли
-    final cornerPaint = Paint()
-      ..color = Colors.green.withOpacity(0.8)
-      ..strokeWidth = 4
-      ..style = PaintingStyle.stroke;
-
-    final cornerLength = 20.0;
-    final pulse = (sin(progress * 4 * pi) * 0.5 + 0.5) * 10;
-
-    // Горен ляв ъгъл
-    canvas.drawLine(Offset(0, pulse), Offset(cornerLength, pulse), cornerPaint);
-    canvas.drawLine(Offset(pulse, 0), Offset(pulse, cornerLength), cornerPaint);
-
-    // Горен десен ъгъл
-    canvas.drawLine(Offset(size.width - cornerLength, pulse), Offset(size.width, pulse), cornerPaint);
-    canvas.drawLine(Offset(size.width - pulse, 0), Offset(size.width - pulse, cornerLength), cornerPaint);
-
-    // Долен ляв ъгъл
-    canvas.drawLine(Offset(0, size.height - pulse), Offset(cornerLength, size.height - pulse), cornerPaint);
-    canvas.drawLine(Offset(pulse, size.height - cornerLength), Offset(pulse, size.height), cornerPaint);
-
-    // Долен десен ъгъл
-    canvas.drawLine(Offset(size.width - cornerLength, size.height - pulse), Offset(size.width, size.height - pulse), cornerPaint);
-    canvas.drawLine(Offset(size.width - pulse, size.height - cornerLength), Offset(size.width - pulse, size.height), cornerPaint);
+    
+    // Glow effect
+    final glowPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+           Colors.greenAccent.withOpacity(0.0),
+           Colors.greenAccent.withOpacity(0.5),
+        ],
+      ).createShader(Rect.fromLTWH(0, scanY - 50, size.width, 50));
+    
+    canvas.drawRect(Rect.fromLTWH(0, scanY - 50, size.width, 50), glowPaint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant ScanPainter oldDelegate) => oldDelegate.progress != progress;
 }
 
 class AnimalInfoSheet extends StatelessWidget {
+  final File imageFile;
+  final AnimalData animalData;
   final VoidCallback onSave;
 
-  const AnimalInfoSheet({super.key, required this.onSave});
+  const AnimalInfoSheet({
+    super.key, 
+    required this.imageFile, 
+    required this.animalData, 
+    required this.onSave
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.green.withOpacity(0.2),
-            blurRadius: 20,
-            spreadRadius: 5,
-          ),
-        ],
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
+      padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Заглавие
           Center(
-            child: Text(
-              'Резултат от анализ',
-              style: TextStyle(
-                color: Colors.green[800],
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
-          
           const SizedBox(height: 24),
           
-          // Информация за животното
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Снимка на животното
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(15),
-                  color: Colors.green[100],
-                  image: const DecorationImage(
-                    image: NetworkImage('https://images.unsplash.com/photo-1552053831-71594a27632d?w=400'),
-                    fit: BoxFit.cover,
-                  ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: Image.file(
+                  imageFile,
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
                 ),
               ),
-              
-              const SizedBox(width: 20),
-              
-              // Детайли
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Златен ретрийвър',
-                      style: TextStyle(
-                        color: Colors.green[800],
-                        fontSize: 20,
+                      animalData.localName,
+                      style: const TextStyle(
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
+                        color: Colors.green
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Text(
-                      'Вид: Куче',
+                      animalData.breed,
                       style: TextStyle(
-                        color: Colors.green[600],
                         fontSize: 16,
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w500
                       ),
                     ),
-                    Text(
-                      'Порода: Golden Retriever',
-                      style: TextStyle(
-                        color: Colors.green[600],
-                        fontSize: 16,
+                    if (animalData.isRedBook) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.red[50],
+                          border: Border.all(color: Colors.red),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                             Icon(Icons.warning_amber_rounded, color: Colors.red, size: 16),
+                             SizedBox(width: 4),
+                             Text(
+                               'Червена книга',
+                               style: TextStyle(
+                                 color: Colors.red,
+                                 fontSize: 12,
+                                 fontWeight: FontWeight.bold
+                               ),
+                             ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Увереност: 94%',
-                      style: TextStyle(
-                        color: Colors.green[600],
-                        fontSize: 16,
-                      ),
-                    ),
+                    ]
                   ],
                 ),
-              ),
+              )
             ],
           ),
           
           const SizedBox(height: 24),
           
-          // Описание
-          Text(
-            'Златният ретрийвър е дружелюбно, интелигентно и послушно куче. Известен е със своята златна козина и любяща природа.',
-            style: TextStyle(
-              color: Colors.green[700],
-              fontSize: 14,
-              height: 1.4,
+          // Interesting Fact
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.lightbulb_outline, color: Colors.green[700], size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Знаете ли че?',
+                      style: TextStyle(
+                        color: Colors.green[800],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Text(
+                  animalData.description,
+                  style: TextStyle(
+                    color: Colors.green[900],
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
           ),
           
-          const SizedBox(height: 32),
+          SizedBox(height: 32),
           
-          // Бутони за действие
           Row(
             children: [
               Expanded(
                 child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.green,
-                    side: const BorderSide(color: Colors.green),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Затвори'),
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    side: BorderSide(color: Colors.green),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text('Отказ', style: TextStyle(color: Colors.green)),
                 ),
               ),
-              
-              const SizedBox(width: 16),
-              
+              SizedBox(width: 16),
               Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
+                child: ElevatedButton.icon(
                   onPressed: onSave,
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.save_alt, size: 20),
-                      SizedBox(width: 8),
-                      Text('Запази в албум'),
-                    ],
+                  icon: Icon(Icons.save_alt, color: Colors.white),
+                  label: Text('Запази в Албум', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: Colors.green,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),

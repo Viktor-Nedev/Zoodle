@@ -22,6 +22,13 @@ dependencies:
   table_calendar: ^3.1.0
   url_launcher: ^6.2.5
   intl: ^0.19.0
+  camera: ^0.10.5+9
+  google_generative_ai: ^0.4.7
+  google_mlkit_image_labeling: ^0.11.0
+  lottie: ^3.1.0
+  path_provider: ^2.1.2
+  path: ^1.9.0
+  uuid: ^4.3.3
 
 dev_dependencies:
   flutter_test:
