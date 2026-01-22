@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import '../main_scaffold.dart';
+import 'chat_page.dart';
 
 // Страница за събития и новини
 class EventsPage extends StatefulWidget {
@@ -504,6 +505,7 @@ class _AddEventFormState extends State<AddEventForm> {
   EventType _selectedType = EventType.event;
   String _selectedImage = '';
   bool _isUploading = false;
+  bool _createGroupChat = true;
 
   @override
   void initState() {
@@ -585,16 +587,20 @@ class _AddEventFormState extends State<AddEventForm> {
       try {
         if (widget.event == null) {
           // Създаване на ново събитие
-          DocumentReference channelDoc = await FirebaseFirestore.instance
-              .collection('event_channels')
-              .add({
-            'name': _titleController.text,
-            'description': _shortDescController.text,
-            'adminId': currentUserId,
-            'members': [currentUserId],
-            'lastMessage': 'Каналът е създаден.',
-            'lastMessageTimestamp': FieldValue.serverTimestamp(),
-          });
+          String? channelId;
+          if (_createGroupChat) {
+            DocumentReference channelDoc = await FirebaseFirestore.instance
+                .collection('event_channels')
+                .add({
+              'name': _titleController.text,
+              'description': _shortDescController.text,
+              'adminId': currentUserId,
+              'members': [currentUserId],
+              'lastMessage': 'Каналът е създаден.',
+              'lastMessageTimestamp': FieldValue.serverTimestamp(),
+            });
+            channelId = channelDoc.id;
+          }
 
           await FirebaseFirestore.instance.collection('events').add({
             'title': _titleController.text,
@@ -605,7 +611,7 @@ class _AddEventFormState extends State<AddEventForm> {
             'location': _locationController.text,
             'type': _selectedType == EventType.event ? 'event' : 'news',
             'creatorId': currentUserId,
-            'channelId': channelDoc.id,
+            'channelId': channelId ?? '',
             'attendees': [],
             'interested': [],
             'createdAt': FieldValue.serverTimestamp(),
@@ -797,6 +803,20 @@ class _AddEventFormState extends State<AddEventForm> {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Превключвател за групов чат
+                      SwitchListTile(
+                        title: const Text('Създай групов чат'),
+                        subtitle: const Text('Позволи на участниците да общуват'),
+                        secondary: Icon(Icons.chat_bubble_outline, color: Colors.green[700]),
+                        value: _createGroupChat,
+                        activeColor: Colors.green[700],
+                        onChanged: (bool value) {
+                          setState(() {
+                            _createGroupChat = value;
+                          });
+                        },
                       ),
                       const SizedBox(height: 16),
                       // Поле за заглавие
@@ -1119,7 +1139,48 @@ class _EventDetailPageState extends State<EventDetailPage> {
                 height: 1.5,
               ),
             ),
+            const SizedBox(height: 16),
+            // Бутон за чат
+            if (widget.event.channelId.isNotEmpty && (_isAttending || isCreator))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _goToChat,
+                    icon: const Icon(Icons.chat),
+                    label: const Text('Към чата на събитието'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[600],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _goToChat() {
+    // Navigate to ChatDetailPage
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatDetailPage(
+          channel: ChatChannel(
+            id: widget.event.channelId,
+            name: widget.event.title,
+            members: widget.event.attendees.length,
+            lastMessage: '',
+            time: '',
+            unread: 0,
+            isOnline: false,
+            adminId: widget.event.creatorId,
+          ),
+          collectionPath: 'event_channels',
         ),
       ),
     );

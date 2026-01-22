@@ -728,9 +728,17 @@ class _MapScreenState extends State<MapScreen>
     String chatId = myId.compareTo(reporterId) > 0 ? '${myId}_$reporterId' : '${reporterId}_$myId';
 
     try {
+      // Вземане на ролите на двамата потребители
+      final myDoc = await FirebaseFirestore.instance.collection('users').doc(myId).get();
+      final reporterDoc = await FirebaseFirestore.instance.collection('users').doc(reporterId).get();
+      
+      final myRole = myDoc.data()?['role'] ?? 'user';
+      final reporterRole = reporterDoc.data()?['role'] ?? 'user';
+
       await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
         'members': [myId, reporterId],
         'memberNames': {myId: myName, reporterId: reporterName},
+        'memberRoles': {myId: myRole, reporterId: reporterRole},
         'lastMessage': '',
         'lastMessageTimestamp': Timestamp.now(),
         'createdAt': Timestamp.now(),
