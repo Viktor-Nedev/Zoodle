@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_nav_bar/google_nav_bar.dart';
 import 'pages/map_page.dart';
 import 'pages/events_page.dart';
 import 'pages/camera_page.dart';
@@ -41,40 +42,60 @@ class _MainScaffoldState extends State<MainScaffold> {
         children: _pages,
       ),
       // Долно навигационно меню
-      bottomNavigationBar: NavigationBar(
-        onDestinationSelected: (int index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        selectedIndex: _selectedIndex,
-        destinations: const <Widget>[
-          NavigationDestination(
-            selectedIcon: Icon(Icons.map),
-            icon: Icon(Icons.map_outlined),
-            label: 'Карта',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 20,
+              color: Colors.black.withOpacity(.1),
+            )
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 8),
+            child: GNav(
+              rippleColor: Colors.grey[300]!,
+              hoverColor: Colors.grey[100]!,
+              gap: 4,
+              activeColor: Colors.white,
+              iconSize: 24,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+              duration: const Duration(milliseconds: 400),
+              tabBackgroundColor: const Color(0xFF0B8457), // Green primary
+              color: Colors.grey[600], // Inactive color
+              tabs: const [
+                 GButton(
+                  icon: Icons.map_outlined,
+                  text: 'Карта',
+                ),
+                 GButton(
+                  icon: Icons.chat_bubble_outline,
+                  text: 'Чат',
+                ),
+                 GButton(
+                  icon: Icons.camera_alt_outlined,
+                  text: 'AI Камера',
+                ),
+                 GButton(
+                  icon: Icons.event_outlined,
+                  text: 'Събития',
+                ),
+                 GButton(
+                  icon: Icons.person_outline,
+                  text: 'Профил',
+                ),
+              ],
+              selectedIndex: _selectedIndex,
+              onTabChange: (index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+            ),
           ),
-          NavigationDestination(
-            selectedIcon: Icon(Icons.chat_bubble),
-            icon: Icon(Icons.chat_bubble_outline),
-            label: 'Чат',
-          ),
-          NavigationDestination(
-            selectedIcon: Icon(Icons.camera_alt),
-            icon: Icon(Icons.camera_alt_outlined),
-            label: 'AI Камера',
-          ),
-          NavigationDestination(
-            selectedIcon: Icon(Icons.event),
-            icon: Icon(Icons.event_outlined),
-            label: 'Събития',
-          ),
-          NavigationDestination(
-            selectedIcon: Icon(Icons.person),
-            icon: Icon(Icons.person_outline),
-            label: 'Профил',
-          ),
-        ],
+        ),
       ),
     );
   }

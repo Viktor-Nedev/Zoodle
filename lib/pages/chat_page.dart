@@ -15,8 +15,6 @@ class ProfilePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Профил'),
-        backgroundColor: Colors.green[700],
-        foregroundColor: Colors.white,
       ),
       body: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
@@ -107,7 +105,7 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(backgroundColor: Colors.green[500], title: const Text('Чат')),
+        appBar: AppBar(title: const Text('Чат')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -115,8 +113,6 @@ class _ChatPageState extends State<ChatPage> {
     return Scaffold(
       backgroundColor: Colors.green[50],
       appBar: AppBar(
-        backgroundColor: Colors.green[500],
-        foregroundColor: Colors.white,
         elevation: 0,
         title: const Text('Чат'),
       ),
@@ -599,10 +595,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.green[50],
       appBar: AppBar(
-        backgroundColor: Colors.green[500],
-        foregroundColor: Colors.white,
+        centerTitle: false,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -1038,8 +1032,6 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
       backgroundColor: Colors.green[50],
       appBar: AppBar(
         title: const Text('Настройки на групата'),
-        backgroundColor: Colors.green[500],
-        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

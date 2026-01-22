@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../auth/login_screen.dart';
+import '../main.dart';
 import 'events_page.dart' as events_model;
 
 // Модел за мисии и баджове
@@ -82,7 +83,6 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  int _selectedIndex = 0;
   List<Badge> _earnedBadges = [];
   String _profileImageUrl = 'https://picsum.photos/200/200?random=5';
   User? _currentUser;
@@ -216,10 +216,9 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
+        backgroundColor: Colors.green[50],
         appBar: AppBar(
           title: Text(widget.userId != null ? 'Профил' : 'Моят Профил'),
-          backgroundColor: Colors.green[700],
-          foregroundColor: Colors.white,
           elevation: 0,
         ),
         body: const Center(child: CircularProgressIndicator()),
@@ -227,10 +226,9 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     return Scaffold(
+      backgroundColor: Colors.green[50],
       appBar: AppBar(
         title: Text(widget.userId != null ? 'Профил' : 'Моят Профил'),
-        backgroundColor: Colors.green[700],
-        foregroundColor: Colors.white,
         elevation: 0,
         actions: widget.userId == null
             ? [
@@ -241,81 +239,82 @@ class _ProfilePageState extends State<ProfilePage> {
               ]
             : null,
       ),
-      body: Column(
-        children: [
-          // Табове за навигация
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.green[50],
-              border: Border(
-                bottom: BorderSide(color: Colors.green[100] ?? Colors.green),
-              ),
-            ),
-            child: Row(
-              children: [
-                _buildTab('Основно', 0),
-                _buildTab('Сигнали', 1),
-                if (widget.userId == null) _buildTab('Контакт', 2),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _buildCurrentPage(),
-          ),
-        ],
-      ),
+      body: _buildProfilePage(),
     );
   }
 
-  // Изграждане на таб
-  Widget _buildTab(String text, int index) {
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: _selectedIndex == index
-                    ? Colors.green[700] ?? Colors.green
-                    : Colors.transparent,
-                width: 2,
-              ),
-            ),
-          ),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color:
-                  _selectedIndex == index ? Colors.green[700] ?? Colors.green : Colors.grey[600],
-              fontWeight:
-                  _selectedIndex == index ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ),
+  // Настройки
+  void _openSettings() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Text(
+                'Настройки',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0B8457),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ListTile(
+                leading: const Icon(Icons.mail_outline, color: Color(0xFF0B8457)),
+                title: const Text('Свържи се с нас'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showContactDialog();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.person, color: Color(0xFF0B8457)),
+                title: const Text('Редактирай профил'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _editProfile();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.brightness_6_outlined, color: Color(0xFF0B8457)),
+                title: const Text('Смяна на тема'),
+                onTap: () {
+                  AnimalRescueApp.of(context).toggleTheme();
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.logout, color: Colors.amber),
+                title: const Text('Изход', style: TextStyle(color: Colors.amber)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await FirebaseAuth.instance.signOut();
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  // Изграждане на текущата страница
-  Widget _buildCurrentPage() {
-    switch (_selectedIndex) {
-      case 0:
-        return _buildProfilePage();
-      case 1:
-        return _buildReportsPage();
-      case 2:
-        return _buildContactPage();
-      default:
-        return _buildProfilePage();
-    }
-  }
+
 
   // Основна профилна страница
   Widget _buildProfilePage() {
@@ -709,125 +708,37 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Страница с подадени сигнали
-  Widget _buildReportsPage() {
-    if (widget.userId != null) {
-      return const Center(
-        child: Text(
-          "Сигналите са видими само в собствения профил.",
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-          textAlign: TextAlign.center,
-        ),
-      );
-    }
 
-    if (_currentUser == null) return const Center(child: Text("Не сте логнати."));
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('animal_reports')
-          .where('reporterId', isEqualTo: _currentUser!.uid)
-          .orderBy('timestamp', descending: true)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.report_off, size: 64, color: Colors.grey[300]),
-                const SizedBox(height: 16),
-                Text(
-                  'Все още нямате подадени сигнали',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          );
-        }
-
-        var reports = snapshot.data!.docs;
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: reports.length,
-          itemBuilder: (context, index) {
-            var data = reports[index].data() as Map<String, dynamic>;
-            var timestamp = (data['timestamp'] as Timestamp?)?.toDate();
-
-            return Card(
-              elevation: 2,
-              margin: const EdgeInsets.only(bottom: 12),
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8.0),
-                      child: Image.network(
-                        data['imageUrl'] ?? 'https://placehold.co/100',
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            data['status'] ?? 'Неизвестен статус',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green[800],
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            data['description'] ?? 'Няма описание',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: Colors.grey[700]),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            timestamp != null
-                                ? '${timestamp.day}.${timestamp.month}.${timestamp.year}'
-                                : 'Няма дата',
-                            style:
-                                TextStyle(fontSize: 12, color: Colors.grey[500]),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // Страница за контакт
-  Widget _buildContactPage() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+  // Диалог за контакт
+  void _showContactDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.9,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+             return SingleChildScrollView(
+              controller: scrollController,
+              padding: const EdgeInsets.all(24),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                   Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                   Text(
                     'Свържете се с нас',
                     style: TextStyle(
@@ -839,20 +750,21 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 8),
                   Text(
                     'Имате въпрос или нужда от помощ? Изпратете ни съобщение!',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.grey[600],
                     ),
                   ),
                   const SizedBox(height: 24),
                   _buildContactForm(),
+                  const SizedBox(height: 24),
+                  _buildContactInfo(),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildContactInfo(),
-        ],
-      ),
+             );
+          }
+        );
+      },
     );
   }
 
@@ -1107,74 +1019,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Отваряне на настройки
-  void _openSettings() {
-    if (widget.userId != null) {
-      _showMessage("Настройките са достъпни само за собствения ви профил.");
-      return;
-    }
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: 400,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Настройки',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green[800],
-                ),
-              ),
-              const SizedBox(height: 24),
-              _buildSettingsOption(
-                  Icons.person, 'Редактирай профил', _editProfile),
-              _buildSettingsOption(
-                  Icons.language, 'Смени език', _changeLanguage),
-              _buildSettingsOption(
-                  Icons.notifications, 'Известия', _notificationSettings),
-              _buildSettingsOption(
-                  Icons.security, 'Поверителност', _privacySettings),
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: _logout,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: const Text('Изход от профила'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   // Опция в настройките
   Widget _buildSettingsOption(IconData icon, String text, VoidCallback onTap) {
@@ -1223,56 +1068,9 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _changeLanguage() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Смени език'),
-        content:
-            const Text('Функционалността за смяна на език ще бъде добавена скоро.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
 
-  void _notificationSettings() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Настройки на известията'),
-        content: const Text(
-            'Функционалността за настройки на известията ще бъде добавена скоро.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
 
-  void _privacySettings() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Настройки за поверителност'),
-        content: const Text(
-            'Функционалността за настройки на поверителността ще бъде добавена скоро.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   // Изход от профила
  void _logout() {

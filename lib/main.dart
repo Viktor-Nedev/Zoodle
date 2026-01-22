@@ -7,6 +7,8 @@ import 'auth/login_screen.dart';
 import 'main_scaffold.dart';
 import 'services/notification_service.dart';
 
+import 'theme/app_theme.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -26,10 +28,22 @@ class AnimalRescueApp extends StatefulWidget {
   const AnimalRescueApp({super.key});
 
   @override
+  static _AnimalRescueAppState of(BuildContext context) =>
+      context.findAncestorStateOfType<_AnimalRescueAppState>()!;
+
   State<AnimalRescueApp> createState() => _AnimalRescueAppState();
 }
 
 class _AnimalRescueAppState extends State<AnimalRescueApp> {
+  ThemeMode _themeMode = ThemeMode.light;
+
+  void toggleTheme() {
+    setState(() {
+      _themeMode =
+          _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -50,10 +64,9 @@ class _AnimalRescueAppState extends State<AnimalRescueApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Спаси Животно',
-      theme: ThemeData(
-        primarySwatch: Colors.green,
-        useMaterial3: true,
-      ),
+      theme: AppTheme.greenTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: _themeMode,
       debugShowCheckedModeBanner: false,
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),

@@ -937,21 +937,7 @@ class _MapScreenState extends State<MapScreen>
   // Бутон за меню на картата
   Widget _buildMapMenuButton() {
     return PopupMenuButton<String>(
-      icon: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.green[700],
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: const Icon(Icons.menu, color: Colors.white),
-      ),
+      icon: const Icon(Icons.more_vert, color: Colors.green),
       onSelected: (value) {
         switch (value) {
           case 'filter':
@@ -979,6 +965,7 @@ class _MapScreenState extends State<MapScreen>
             title: Text('Филтри'),
           ),
         ),
+
         const PopupMenuItem<String>(
           value: 'location',
           child: ListTile(
@@ -1015,10 +1002,11 @@ class _MapScreenState extends State<MapScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Карта на Сигналите"),
-        backgroundColor: Colors.green[700],
-        foregroundColor: Colors.white,
+        title: const Text("Карта на сигналите"),
         elevation: 0,
+        actions: [
+          _buildMapMenuButton(),
+        ],
       ),
       body: Stack(
         children: [
@@ -1052,11 +1040,11 @@ class _MapScreenState extends State<MapScreen>
                 ),
               ),
             ),
-          Positioned(
+          /* Positioned(
             top: 30,
             left: 10,
             child: _buildMapMenuButton(),
-          ),
+          ), */
           _buildBottomUI(),
           _buildLegend(),
         ],
