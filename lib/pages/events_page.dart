@@ -49,10 +49,9 @@ class _EventsPageState extends State<EventsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.green[50],
       appBar: AppBar(
-        title: const Text('Събития и Новини'),
-        backgroundColor: Colors.green[700],
-        foregroundColor: Colors.white,
+        title: const Text('Събития & Новини'),
         elevation: 0,
       ),
       body: Column(

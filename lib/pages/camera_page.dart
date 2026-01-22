@@ -86,6 +86,7 @@ class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateM
       if (mounted) {
         if (animalData != null) {
            _showResult(imageFile, animalData);
+           _incrementScanCount();
         } else {
            _showErrorSnackBar('Не разпознахме животно на снимката. Опитайте пак!');
         }
@@ -118,6 +119,21 @@ class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateM
         onSave: () => _saveToProfile(imageFile, animalData),
       ),
     );
+  }
+
+  Future<void> _incrementScanCount() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({'scansCount': FieldValue.increment(1)});
+        debugPrint('Scan count incremented');
+      } catch (e) {
+        debugPrint('Error incrementing scan count: $e');
+      }
+    }
   }
 
 
@@ -287,7 +303,7 @@ class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateM
                                    padding: EdgeInsets.all(16.0),
                                    child: CircularProgressIndicator(color: Colors.green, strokeWidth: 2),
                                  )
-                               : const Icon(Icons.camera_alt, color: Colors.black, size: 30),
+                               : const Icon(Icons.camera_alt, color: Colors.white, size: 30),
                            ),
                          ),
                        ),
