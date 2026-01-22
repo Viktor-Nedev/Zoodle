@@ -5,6 +5,7 @@ import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'auth/login_screen.dart';
 import 'main_scaffold.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,8 +22,29 @@ void main() async {
   runApp(const AnimalRescueApp());
 }
 
-class AnimalRescueApp extends StatelessWidget {
+class AnimalRescueApp extends StatefulWidget {
   const AnimalRescueApp({super.key});
+
+  @override
+  State<AnimalRescueApp> createState() => _AnimalRescueAppState();
+}
+
+class _AnimalRescueAppState extends State<AnimalRescueApp> {
+  @override
+  void initState() {
+    super.initState();
+    _initServices();
+  }
+
+  Future<void> _initServices() async {
+    try {
+      final notificationService = NotificationService();
+      await notificationService.initialize();
+      print("NotificationService initialized successfully");
+    } catch (e) {
+      print("Error initializing NotificationService: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
