@@ -4,6 +4,7 @@ import 'package:Zoodle/data/animal_repository.dart';
 import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -139,50 +140,71 @@ class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateM
 
   Future<void> _saveToProfile(File imageFile, AnimalData data) async {
     try {
-       final user = FirebaseAuth.instance.currentUser;
-       if (user == null) {
-         ScaffoldMessenger.of(context).showSnackBar(
-           const SnackBar(content: Text('Моля влезте в профила си, за да запазите.')),
-         );
-         return;
-       }
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Моля влезте в профила си, за да запазите.')),
+          );
+        }
+        return;
+      }
 
-       Navigator.pop(context); 
-       
-       ScaffoldMessenger.of(context).showSnackBar(
-         const SnackBar(content: Text('Записване...')),
-       );
+      // Затваряме панела веднага, но внимателно
+      if (mounted) {
+        Navigator.pop(context); 
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Записване...')),
+        );
+      }
+      
+      print("Започва качване в албум...");
+      final uuid = const Uuid().v4();
+      final filePath = 'users/${user.uid}/animals/$uuid.jpg';
+      
+      // Опростяване на инициализацията - използваме стандартната инстанция
+      final storageRef = FirebaseStorage.instance.ref().child(filePath);
 
-       final uuid = Uuid().v4();
-       final storageRef = FirebaseStorage.instance
-           .ref()
-           .child('users/${user.uid}/animals/$uuid.jpg');
+      print("Път на съхранение: $filePath");
 
-       await storageRef.putFile(imageFile);
-       final downloadUrl = await storageRef.getDownloadURL();
+      UploadTask uploadTask = storageRef.putFile(imageFile);
 
-       await FirebaseFirestore.instance
-           .collection('users')
-           .doc(user.uid)
-           .collection('album')
-           .add({
-             'imageUrl': downloadUrl,
-             'animalType': data.localName,
-             'breed': data.breed,
-             'timestamp': FieldValue.serverTimestamp(),
-             'isRedBook': data.isRedBook,
-             'description': data.description,
-           });
+      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+        if (mounted) {
+          double progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          print('Прогрес на качване в албум: ${progress.toStringAsFixed(1)}% (State: ${snapshot.state})');
+        }
+      }, onError: (e) {
+        print("ГРЕШКА по време на стрийм на качване в албум: $e");
+      });
 
-       if (mounted) {
-         _showSuccessSnackbar();
-       }
+      await uploadTask;
+      final downloadUrl = await storageRef.getDownloadURL();
+      print('Снимката е качена в албума! URL: $downloadUrl');
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('album')
+          .add({
+            'imageUrl': downloadUrl,
+            'animalType': data.localName,
+            'breed': data.breed,
+            'timestamp': FieldValue.serverTimestamp(),
+            'isRedBook': data.isRedBook,
+            'description': data.description,
+          });
+
+      if (mounted) {
+        _showSuccessSnackbar();
+      }
 
     } catch (e) {
+      print("ГРЕШКА при запис в албум: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text('Грешка при запис: $e')),
-         );
+          SnackBar(content: Text('Грешка при запис: $e')),
+        );
       }
     }
   }
