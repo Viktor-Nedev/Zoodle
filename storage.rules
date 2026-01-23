@@ -1,0 +1,26 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // 1. Доклади (Reports)
+    // Път в кода: reports/USERID_TIMESTAMP.jpg
+    match /reports/{fileName} {
+      allow read;
+      allow write: if request.auth != null;
+    }
+
+    // 2. Събития (Events)
+    // Път в кода: events/TIMESTAMP.jpg
+    match /events/{fileName} {
+      allow read;
+      allow write: if request.auth != null;
+    }
+
+    // 3. Профилни снимки (Profile Pictures)
+    // Път в кода: profile_pictures/USERID.jpg
+    match /profile_pictures/{fileName} {
+      allow read;
+      allow write: if request.auth != null;
+    }
+  }
+}

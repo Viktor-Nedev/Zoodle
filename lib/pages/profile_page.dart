@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:image_picker/image_picker.dart';
@@ -959,31 +960,52 @@ class _ProfilePageState extends State<ProfilePage> {
 
     File imageFile = File(image.path);
     try {
+      print("Започва качване на профилна снимка...");
       String filePath = 'profile_pictures/${_currentUser!.uid}.jpg';
+      
+      // Опростяване на инициализацията - използваме стандартната инстанция
       Reference storageRef = FirebaseStorage.instance.ref().child(filePath);
 
-      await storageRef.putFile(imageFile);
-      String downloadURL = await storageRef.getDownloadURL();
+      print("Път на съхранение: $filePath");
+
+      UploadTask uploadTask = storageRef.putFile(imageFile);
+
+      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+        if (mounted) {
+          double progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          print('Прогрес на качване: ${progress.toStringAsFixed(1)}% (State: ${snapshot.state})');
+        }
+      }, onError: (e) {
+        print("ГРЕШКА по време на стрийм на качване: $e");
+      });
+
+      TaskSnapshot snapshot = await uploadTask;
+      String downloadURL = await snapshot.ref.getDownloadURL();
+      print('Снимката е качена успешно! URL: $downloadURL');
 
       await FirebaseFirestore.instance
           .collection('users')
           .doc(_currentUser!.uid)
           .update({'profilePictureUrl': downloadURL});
 
-      setState(() {
-        _userData?['profilePictureUrl'] = downloadURL;
-      });
+      if (mounted) {
+        setState(() {
+          _userData?['profilePictureUrl'] = downloadURL;
+        });
 
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Профилната снимка е обновена!')),
-      );
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Профилната снимка е обновена!')),
+        );
+      }
 
     } catch (e) {
       print("Грешка при качване на снимка: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Грешка: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Грешка: $e')),
+        );
+      }
     }
   }
 
@@ -1009,14 +1031,16 @@ class _ProfilePageState extends State<ProfilePage> {
       print("Файлът в Storage не съществува: $e");
     }
 
-    setState(() {
-      _userData?['profilePictureUrl'] = '';
-    });
+    if (mounted) {
+      setState(() {
+        _userData?['profilePictureUrl'] = '';
+      });
 
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Профилната снимка е премахната!')),
-    );
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Профилната снимка е премахната!')),
+      );
+    }
   }
 
 

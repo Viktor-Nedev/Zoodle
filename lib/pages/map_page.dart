@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -365,16 +366,24 @@ class _MapScreenState extends State<MapScreen>
 
     if (imageFile != null) {
       try {
-        print("Започва качване на снимка...");
+        print("Започва качване на снимка... Баскет: zoodle-be9c3.firebasestorage.app");
 
         String fileName = 'reports/${_currentUser!.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        
+        // Опростяване на инициализацията - използваме стандартната инстанция
         Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+
+        print("Път на съхранение: $fileName");
 
         UploadTask uploadTask = storageRef.putFile(imageFile);
 
         uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-          double progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          print('Прогрес на качване: ${progress.toStringAsFixed(1)}%');
+          if (mounted) {
+            double progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            print('Прогрес на качване: ${progress.toStringAsFixed(1)}% (State: ${snapshot.state})');
+          }
+        }, onError: (e) {
+          print("ГРЕШКА по време на стрийм на качване: $e");
         });
 
         TaskSnapshot snapshot = await uploadTask;
@@ -383,8 +392,10 @@ class _MapScreenState extends State<MapScreen>
 
       } catch (e) {
         print("ГРЕШКА при качване на снимка: $e");
-        _showMessage("Грешка при качване на снимка: ${e.toString()}");
-        setState(() => _isLoading = false);
+        if (mounted) {
+          _showMessage("Грешка при качване на снимка: ${e.toString()}");
+          setState(() => _isLoading = false);
+        }
         return;
       }
     }
@@ -408,12 +419,15 @@ class _MapScreenState extends State<MapScreen>
       final userRef = FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid);
       await userRef.update({'reportsCount': FieldValue.increment(1)});
 
-      _loadMarkersFromFirestore();
-
-      _showMessage("Сигналът е изпратен успешно!");
+      if (mounted) {
+        _loadMarkersFromFirestore();
+        _showMessage("Сигналът е изпратен успешно!");
+      }
     } catch (e) {
       print("ГРЕШКА при запис във Firestore: $e");
-      _showMessage("Грешка при изпращане на сигнала: ${e.toString()}");
+      if (mounted) {
+        _showMessage("Грешка при изпращане на сигнала: ${e.toString()}");
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);

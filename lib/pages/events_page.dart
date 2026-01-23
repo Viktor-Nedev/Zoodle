@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -551,24 +552,46 @@ class _AddEventFormState extends State<AddEventForm> {
         _isUploading = true;
       });
       try {
+        print("Започва качване на снимка за събитие...");
         File imageFile = File(image.path);
         String fileName = 'events/${DateTime.now().millisecondsSinceEpoch}.jpg';
+        
+        // Опростяване на инициализацията - използваме стандартната инстанция
         Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+        
+        print("Път на съхранение: $fileName");
+
         UploadTask uploadTask = storageRef.putFile(imageFile);
+        
+        uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+          if (mounted) {
+            double progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            print('Прогрес на качване: ${progress.toStringAsFixed(1)}% (State: ${snapshot.state})');
+          }
+        }, onError: (e) {
+          print("ГРЕШКА по време на стрийм на качване: $e");
+        });
+
         TaskSnapshot snapshot = await uploadTask;
         String downloadURL = await snapshot.ref.getDownloadURL();
-        setState(() {
-          _selectedImage = downloadURL;
-          _isUploading = false;
-        });
+        print('Снимката е качена успешно! URL: $downloadURL');
+        
+        if (mounted) {
+          setState(() {
+            _selectedImage = downloadURL;
+            _isUploading = false;
+          });
+        }
       } catch (e) {
-        print("Грешка при качване на снимка: $e");
-        setState(() {
-          _isUploading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Грешка при качване на снимка: $e')),
-        );
+        print("ГРЕШКА при качване на снимка: $e");
+        if (mounted) {
+          setState(() {
+            _isUploading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Грешка при качване на снимка: $e')),
+          );
+        }
       }
     }
   }
