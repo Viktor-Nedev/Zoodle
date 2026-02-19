@@ -18,15 +18,6 @@ class MainScaffold extends StatefulWidget {
 class _MainScaffoldState extends State<MainScaffold> {
   int _selectedIndex = 0;
 
-  // Списък с всички страници в приложението
-  final List<Widget> _pages = <Widget>[
-    const MapScreen(),      
-    const ChatPage(),      
-    const CameraPage(),     
-    const EventsPage(),    
-    const ProfilePage(),   
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -35,11 +26,20 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    // Списък с всички страници в приложението - дефиниран в build за реактивност
+    final List<Widget> pages = <Widget>[
+      const MapScreen(),      
+      const ChatPage(),      
+      CameraPage(isVisible: _selectedIndex == 2),     
+      const EventsPage(),    
+      const ProfilePage(),   
+    ];
+
     return Scaffold(
       // IndexedStack за запазване на състоянието на страниците
       body: IndexedStack(
         index: _selectedIndex,
-        children: _pages,
+        children: pages,
       ),
       // Долно навигационно меню
       bottomNavigationBar: Container(

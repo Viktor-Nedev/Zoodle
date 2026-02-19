@@ -11,13 +11,14 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:Zoodle/services/gemini_service.dart';
 
 class CameraPage extends StatefulWidget {
-  const CameraPage({super.key});
+  final bool isVisible;
+  const CameraPage({super.key, this.isVisible = false});
 
   @override
   State<CameraPage> createState() => _CameraPageState();
 }
 
-class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateMixin {
+class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   CameraController? _controller;
   late AnimationController _animationController;
   bool _isScanning = false;
@@ -29,15 +30,43 @@ class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    _initializeCamera();
+    
+    if (widget.isVisible) {
+      _initializeCamera();
+    }
   }
 
-  // ... (dispose and camera init remain same)
+  @override
+  void didUpdateWidget(CameraPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isVisible && !oldWidget.isVisible) {
+      _initializeCamera();
+    } else if (!widget.isVisible && oldWidget.isVisible) {
+      _disposeCamera();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      _disposeCamera();
+    } else if (state == AppLifecycleState.resumed) {
+      if (widget.isVisible) {
+        _initializeCamera();
+      }
+    }
+  }
+
   Future<void> _initializeCamera() async {
+    if (_controller != null) return; // Already initialized
+
     final status = await Permission.camera.request();
     if (status.isGranted) {
       try {
@@ -57,9 +86,16 @@ class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateM
     }
   }
 
+  void _disposeCamera() {
+    _controller?.dispose();
+    _controller = null;
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
-    _controller?.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _disposeCamera();
     _animationController.dispose();
     super.dispose();
   }
@@ -143,19 +179,18 @@ class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateM
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Моля влезте в профила си, за да запазите.')),
-          );
+          _showErrorSnackBar('Моля влезте в профила си, за да запазите.');
         }
         return;
       }
 
-      // Затваряме панела веднага, но внимателно
+      // Record messenger before any async gap or pop if possible, 
+      // but showing snackbar BEFORE pop is usually safer.
       if (mounted) {
-        Navigator.pop(context); 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Записване...')),
         );
+        Navigator.pop(context); 
       }
       
       print("Започва качване в албум...");
