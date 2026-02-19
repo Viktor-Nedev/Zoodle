@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -355,7 +356,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   backgroundColor: Colors.green[100],
                   backgroundImage: _userData?['profilePictureUrl'] != null &&
                           _userData!['profilePictureUrl'].isNotEmpty
-                      ? NetworkImage(_userData!['profilePictureUrl'])
+                      ? CachedNetworkImageProvider(_userData!['profilePictureUrl'])
                       : null,
                   child: _userData?['profilePictureUrl'] == null ||
                           _userData!['profilePictureUrl'].isEmpty
@@ -993,18 +994,16 @@ class _ProfilePageState extends State<ProfilePage> {
           _userData?['profilePictureUrl'] = downloadURL;
         });
 
-        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Профилната снимка е обновена!')),
         );
+        Navigator.pop(context);
       }
 
     } catch (e) {
       print("Грешка при качване на снимка: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Грешка: $e')),
-        );
+        _showMessage('Грешка: $e');
       }
     }
   }
@@ -1036,10 +1035,10 @@ class _ProfilePageState extends State<ProfilePage> {
         _userData?['profilePictureUrl'] = '';
       });
 
-      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Профилната снимка е премахната!')),
       );
+      Navigator.pop(context);
     }
   }
 

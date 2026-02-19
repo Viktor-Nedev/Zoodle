@@ -15,7 +15,7 @@ import 'package:intl/intl.dart';
 
 import '../widgets/pulsing_report_button.dart';
 import '../widgets/report_sheet.dart';
-import '../widgets/marker_info_sheet.dart';
+import '../widgets/animal_details_sheet.dart';
 import 'chat_page.dart';
 
 // Модел за данните на маркера
@@ -63,6 +63,10 @@ class _MapScreenState extends State<MapScreen>
   User? _currentUser;
   String _userRole = 'user';
   Map<String, dynamic>? _userData;
+  
+  // Данни за избрания маркер (за страничния панел)
+  Map<String, dynamic>? _selectedMarkerData;
+  String? _selectedMarkerDocId;
 
   final String _customStyleUri = "mapbox://styles/vikdev/cmgs0el6h00f101qx22dp3odf";
   final Map<String, Map<String, dynamic>> _firestoreMarkerData = {};
@@ -282,7 +286,7 @@ class _MapScreenState extends State<MapScreen>
         final data = _firestoreMarkerData[docId];
         if (data != null) {
           print("Намерен маркер: $docId - ${data['status']}");
-          _showMarkerInfoPanel(docId, data);
+          _updateMarkerSelection(docId, data);
         } else {
           print("Няма данни за docId: $docId");
         }
@@ -614,46 +618,18 @@ class _MapScreenState extends State<MapScreen>
   }
 
   // Показване на информация за маркер
-  void _showMarkerInfoPanel(String docId, Map<String, dynamic> data) {
-    String reporterId = data['reporterId'] ?? '';
-    String reporterName = data['reporterName'] ?? 'Неизвестен';
-    
-    final canDelete = _userRole == 'zoologist' || reporterId == _currentUser?.uid;
-    bool showChatButton = reporterId != _currentUser?.uid && reporterId.isNotEmpty;
+  void _updateMarkerSelection(String docId, Map<String, dynamic> data) {
+    setState(() {
+      _selectedMarkerDocId = docId;
+      _selectedMarkerData = data;
+    });
+  }
 
-    print("Права за изтриване: $canDelete (Роля: $_userRole, Reporter: $reporterId, Current: ${_currentUser?.uid})");
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          margin: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              MarkerInfoSheet(
-                data: data,
-                isRescueTeam: _userRole == 'zoologist',
-                onNavigate: () {
-                  GeoPoint location = data['location'];
-                  _launchNavigation(context, location.latitude, location.longitude);
-                },
-                onRemove: () => _removeMarker(context, docId),
-                canDelete: canDelete,
-                showChatButton: showChatButton,
-                onChat: () {
-                  Navigator.pop(context);
-                  _navigateToChat(reporterId, reporterName);
-                },
-              ),
-              const SizedBox(height: 10),
-            ],
-          ),
-        );
-      },
-    );
+  void _clearMarkerSelection() {
+    setState(() {
+      _selectedMarkerDocId = null;
+      _selectedMarkerData = null;
+    });
   }
 
   // Премахване на маркер
@@ -698,12 +674,11 @@ class _MapScreenState extends State<MapScreen>
       
       _loadMarkersFromFirestore();
       
-      Navigator.pop(context);
-      
       if (context.mounted) {
+        _clearMarkerSelection();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Сигналът е премахнат успешно.'),
+            content: const Text('Сигналът е премахнат успешно.'),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -712,10 +687,6 @@ class _MapScreenState extends State<MapScreen>
     } catch (e) {
       print("Грешка при изтриване: $e");
       
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
-      
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -723,6 +694,10 @@ class _MapScreenState extends State<MapScreen>
             duration: const Duration(seconds: 5),
           ),
         );
+      }
+      
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
       }
     }
   }
@@ -762,7 +737,7 @@ class _MapScreenState extends State<MapScreen>
 
       if (!mounted) return;
       
-      Navigator.pop(context);
+      _clearMarkerSelection();
       
       Navigator.push(
         context,
@@ -1061,6 +1036,40 @@ class _MapScreenState extends State<MapScreen>
           ), */
           _buildBottomUI(),
           _buildLegend(),
+          
+          // Панел с информация (страничен)
+          if (_selectedMarkerData != null && _selectedMarkerDocId != null)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 70,
+              right: 16,
+              bottom: 120, // Оставяме място за долния UI
+              child: SingleChildScrollView(
+                child: AnimalDetailsSheet(
+                  data: _selectedMarkerData!,
+                  isRescueTeam: _userRole == 'zoologist',
+                  onNavigate: () {
+                    GeoPoint location = _selectedMarkerData!['location'];
+                    _launchNavigation(context, location.latitude, location.longitude);
+                  },
+                  onRemove: () {
+                    final docId = _selectedMarkerDocId!;
+                    _clearMarkerSelection();
+                    _removeMarker(context, docId);
+                  },
+                  canDelete: _userRole == 'zoologist' || 
+                            (_selectedMarkerData!['reporterId'] == _currentUser?.uid),
+                  showChatButton: _selectedMarkerData!['reporterId'] != _currentUser?.uid && 
+                                 (_selectedMarkerData!['reporterId'] ?? '').isNotEmpty,
+                  onChat: () {
+                    final reporterId = _selectedMarkerData!['reporterId'];
+                    final reporterName = _selectedMarkerData!['reporterName'] ?? 'Неизвестен';
+                    _clearMarkerSelection();
+                    _navigateToChat(reporterId, reporterName);
+                  },
+                  onClose: _clearMarkerSelection,
+                ),
+              ),
+            ),
         ],
       ),
     );

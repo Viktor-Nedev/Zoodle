@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -313,7 +314,7 @@ class _EventsPageState extends State<EventsPage> {
                       : Colors.transparent,
                   image: event.imageUrl.isNotEmpty
                       ? DecorationImage(
-                          image: NetworkImage(event.imageUrl),
+                          image: CachedNetworkImageProvider(event.imageUrl),
                           fit: BoxFit.cover,
                         )
                       : null,
@@ -749,7 +750,7 @@ class _AddEventFormState extends State<AddEventForm> {
                                 : Colors.transparent,
                             image: _selectedImage.isNotEmpty
                                 ? DecorationImage(
-                                    image: NetworkImage(_selectedImage),
+                                    image: CachedNetworkImageProvider(_selectedImage),
                                     fit: BoxFit.cover,
                                   )
                                 : null,
@@ -1080,7 +1081,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                     : Colors.transparent,
                 image: widget.event.imageUrl.isNotEmpty
                     ? DecorationImage(
-                        image: NetworkImage(widget.event.imageUrl),
+                        image: CachedNetworkImageProvider(widget.event.imageUrl),
                         fit: BoxFit.cover,
                       )
                     : null,
@@ -1215,14 +1216,14 @@ class _EventDetailPageState extends State<EventDetailPage> {
         builder: (context) => AddEventForm(
           event: widget.event,
           onEventAdded: (Event updatedEvent) {
-            Navigator.pop(context);
-            Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('Събитието е редактирано успешно!'),
                 backgroundColor: Colors.green[700],
               ),
             );
+            Navigator.pop(context);
+            Navigator.pop(context);
           },
         ),
       ),
@@ -1409,14 +1410,14 @@ class _EventDetailPageState extends State<EventDetailPage> {
                   .collection('event_channels')
                   .doc(widget.event.channelId)
                   .delete();
-              Navigator.pop(context);
-              Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: const Text('Събитието е изтрито успешно!'),
                   backgroundColor: Colors.green[700],
                 ),
               );
+              Navigator.pop(context);
+              Navigator.pop(context);
             },
             child: Text('Изтрий', style: TextStyle(color: Colors.red[700])),
           ),
