@@ -1,10 +1,10 @@
-// marker_info_sheet.dart
-import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import 'full_screen_image_viewer.dart';
 
-// Панел с информация за маркер на картата
+// Модерен панел с детайли за сигнал от картата
 class AnimalDetailsSheet extends StatelessWidget {
   final Map<String, dynamic> data;
   final bool isRescueTeam;
@@ -27,224 +27,261 @@ class AnimalDetailsSheet extends StatelessWidget {
     required this.onClose,
   });
 
-  // Определяне на цвят според статуса на животното
-  Color _getStatusColor(String status) {
+  Color _statusColor(String status) {
     switch (status) {
       case 'Опасно':
-        return Colors.red;
+        return const Color(0xFFE45757);
       case 'Изгубено':
-        return Colors.blue;
+        return const Color(0xFF318CE7);
       case 'Болно':
-        return Colors.yellow;
+        return const Color(0xFFE2A72E);
       case 'Ранено':
-        return Colors.orange;
+        return const Color(0xFFE7772E);
       default:
-        return Colors.grey;
+        return const Color(0xFF7D8A95);
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'Опасно':
+        return Icons.warning_amber_rounded;
+      case 'Изгубено':
+        return Icons.search_rounded;
+      case 'Болно':
+        return Icons.healing_rounded;
+      case 'Ранено':
+        return Icons.health_and_safety_rounded;
+      default:
+        return Icons.pets_rounded;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Извличане на данни от маркера
-    String status = data['status'] ?? 'Неизвестен';
-    String description = data['description'] ?? 'Няма описание';
-    String reporterName = data['reporterName'] ?? 'Неизвестен';
-    String imageUrl = data['imageUrl'] ?? '';
-    DateTime? timestamp = data['timestamp']?.toDate();
+    final scheme = Theme.of(context).colorScheme;
+    final status = (data['status'] ?? 'Неизвестно').toString();
+    final description = (data['description'] ?? 'Няма описание').toString();
+    final reporterName = (data['reporterName'] ?? 'Неизвестен').toString();
+    final imageUrl = (data['imageUrl'] ?? '').toString();
+    final timestamp = data['timestamp']?.toDate();
+    final hasImage = imageUrl.isNotEmpty && !imageUrl.contains('placehold');
+    final statusColor = _statusColor(status);
+    final formattedDate = timestamp != null
+        ? DateFormat('dd.MM.yyyy • HH:mm').format(timestamp)
+        : 'Преди малко';
 
-    Color statusColor = _getStatusColor(status);
-    bool hasImage = imageUrl.isNotEmpty && !imageUrl.contains('placehold');
-    String formattedDate = timestamp != null 
-        ? DateFormat('dd.MM, HH:mm').format(timestamp) 
-        : 'Сега';
-
-    // Помощен метод за изграждане на малки бутони
-    Widget buildActionButton({
+    Widget actionButton({
       required IconData icon,
-      required String label,
-      required Color color,
-      required VoidCallback onPressed,
-      bool isFullWidth = false,
+      required String text,
+      required VoidCallback onTap,
+      Color? background,
+      Color? foreground,
+      bool expanded = true,
     }) {
-      return ElevatedButton.icon(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          minimumSize: Size(isFullWidth ? double.infinity : 0, 28),
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+      final child = ElevatedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 17),
+        label: Text(
+          text,
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
-        icon: Icon(icon, size: 14),
-        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          backgroundColor: background ?? scheme.primary,
+          foregroundColor: foreground ?? scheme.onPrimary,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       );
+      if (!expanded) return child;
+      return Expanded(child: child);
     }
 
-    final buttons = [
-      buildActionButton(
-        icon: Icons.navigation,
-        label: 'Навигация',
-        color: Colors.green,
-        onPressed: onNavigate,
-      ),
-      if (showChatButton) ...[
-        const SizedBox(width: 4, height: 4),
-        buildActionButton(
-          icon: Icons.chat,
-          label: 'Чат',
-          color: Colors.blue,
-          onPressed: onChat,
-        ),
-      ],
-    ];
-
     return Container(
-      constraints: const BoxConstraints(maxWidth: 240),
+      constraints: const BoxConstraints(maxWidth: 320),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: [Colors.white, scheme.surface],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: scheme.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.16),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Заглавие със статус и Close бутон
             Row(
               children: [
                 Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    status.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      color: statusColor,
-                      letterSpacing: 0.5,
-                    ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(999),
                   ),
-                ),
-                GestureDetector(
-                  onTap: onClose,
-                  child: Icon(Icons.close, size: 18, color: Colors.grey[400]),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-
-            // Основно съдържание
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              reporterName,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            formattedDate,
-                            style: TextStyle(fontSize: 9, color: Colors.grey[500]),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
+                      Icon(_statusIcon(status), size: 15, color: statusColor),
+                      const SizedBox(width: 6),
                       Text(
-                        description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 11, color: Colors.black87),
+                        status,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-
-                if (hasImage)
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => FullScreenImageViewer(imageUrl: imageUrl),
-                        ),
-                      );
-                    },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        height: 54,
-                        width: 54,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          width: 54,
-                          height: 54,
-                          color: Colors.grey[50],
-                          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          width: 54,
-                          height: 54,
-                          color: Colors.grey[50],
-                          child: const Icon(Icons.broken_image, size: 16, color: Colors.grey),
-                        ),
+                const Spacer(),
+                if (isRescueTeam)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'Екип',
+                      style: TextStyle(
+                        color: scheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
                       ),
                     ),
-                  )
-                else
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: buttons,
                   ),
+                IconButton(
+                  onPressed: onClose,
+                  icon: const Icon(Icons.close_rounded),
+                  visualDensity: VisualDensity.compact,
+                ),
               ],
             ),
-
-            // Бутони отдолу, ако има снимка
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.person_outline, size: 16, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    reporterName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              formattedDate,
+              style: TextStyle(
+                color: scheme.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: scheme.surfaceVariant.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                description,
+                style: TextStyle(color: scheme.onSurface, height: 1.35),
+              ),
+            ),
             if (hasImage) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  for (int i = 0; i < buttons.length; i++) ...[
-                    if (buttons[i] is! SizedBox) Expanded(child: buttons[i]),
-                    if (i < buttons.length - 1 && buttons[i+1] is! SizedBox) const SizedBox(width: 4),
-                  ],
-                ],
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          FullScreenImageViewer(imageUrl: imageUrl),
+                    ),
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    width: double.infinity,
+                    height: 145,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: scheme.surfaceVariant,
+                      child: const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: scheme.surfaceVariant,
+                      child: Icon(Icons.broken_image, color: scheme.outline),
+                    ),
+                  ),
+                ),
               ),
             ],
-
-            // Бутон за изтриване
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                actionButton(
+                  icon: Icons.route_rounded,
+                  text: 'Навигация',
+                  onTap: onNavigate,
+                ),
+                if (showChatButton) ...[
+                  const SizedBox(width: 8),
+                  actionButton(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    text: 'Чат',
+                    onTap: onChat,
+                    background: const Color(0xFF2C7BE5),
+                    foreground: Colors.white,
+                  ),
+                ],
+              ],
+            ),
             if (canDelete) ...[
-              const SizedBox(height: 4),
-              buildActionButton(
-                icon: Icons.delete_outline,
-                label: 'Премахни сигнала',
-                color: Colors.red[400]!,
-                onPressed: onRemove,
-                isFullWidth: true,
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onRemove,
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  label: const Text('Премахни сигнала'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFE45757),
+                    side: const BorderSide(color: Color(0xFFE45757)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
               ),
             ],
           ],

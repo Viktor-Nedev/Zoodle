@@ -46,3 +46,6 @@ app.*.map.json
 
 lib/services/gemini_service.dart
 .gitignore
+.env
+.env.*
+!.env.example
