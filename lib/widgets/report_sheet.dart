@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-// Форма за докладване на животно
+// Форма за подаване на нов сигнал
 class ReportAnimalSheet extends StatefulWidget {
   final Function(String status, String description, File? image) onSubmit;
 
@@ -18,40 +18,46 @@ class _ReportAnimalSheetState extends State<ReportAnimalSheet> {
   final _descriptionController = TextEditingController();
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
-  final List<String> _statuses = ["Ранено", "Болно", "Изгубено", "Опасно"];
+  final List<String> _statuses = ['Ранено', 'Болно', 'Изгубено', 'Опасно'];
 
-  // Избор на снимка от галерия или камера
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     try {
-      final pickedFile = await _picker.pickImage(source: source, imageQuality: 80);
-      if (pickedFile != null) {
-        setState(() {
-          _imageFile = File(pickedFile.path);
-        });
-      }
+      final pickedFile = await _picker.pickImage(source: source, imageQuality: 82);
+      if (pickedFile == null) return;
+      setState(() {
+        _imageFile = File(pickedFile.path);
+      });
     } catch (e) {
-      print("Грешка при избор на снимка: $e");
+      print('Грешка при избор на снимка: $e');
     }
   }
 
-  // Показване на избор за източник на снимка
   void _showImageSourceActionSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => SafeArea(
         child: Wrap(
           children: [
             ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Галерия'),
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Избери от галерия'),
               onTap: () {
                 _pickImage(ImageSource.gallery);
                 Navigator.of(context).pop();
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_camera),
-              title: const Text('Камера'),
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Направи снимка'),
               onTap: () {
                 _pickImage(ImageSource.camera);
                 Navigator.of(context).pop();
@@ -63,141 +69,219 @@ class _ReportAnimalSheetState extends State<ReportAnimalSheet> {
     );
   }
 
-  // Обработка на изпращане на формата
   void _handleSubmit() {
     if (_selectedStatus == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Моля, изберете състояние на животното."),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Избери състояние на животното.')),
       );
       return;
     }
-    
-    widget.onSubmit(_selectedStatus!, _descriptionController.text, _imageFile);
+    widget.onSubmit(_selectedStatus!, _descriptionController.text.trim(), _imageFile);
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'Опасно':
+        return const Color(0xFFE45757);
+      case 'Изгубено':
+        return const Color(0xFF318CE7);
+      case 'Болно':
+        return const Color(0xFFE2A72E);
+      case 'Ранено':
+        return const Color(0xFFE7772E);
+      default:
+        return const Color(0xFF7D8A95);
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'Опасно':
+        return Icons.warning_amber_rounded;
+      case 'Изгубено':
+        return Icons.search_rounded;
+      case 'Болно':
+        return Icons.healing_rounded;
+      case 'Ранено':
+        return Icons.health_and_safety_rounded;
+      default:
+        return Icons.pets_rounded;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(20.0),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 20),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Заглавие
-          Text(
-            "Докладвай за животно",
-            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          
-          // Избор на състояние
-          Text("Състояние:", style: theme.textTheme.titleMedium),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 10.0,
-            children: _statuses.map((status) {
-              return ChoiceChip(
-                label: Text(status),
-                selected: _selectedStatus == status,
-                onSelected: (selected) {
-                  setState(() {
-                    _selectedStatus = status;
-                  });
-                },
-                selectedColor: theme.primaryColor,
-                labelStyle: TextStyle(
-                  color: _selectedStatus == status ? Colors.white : Colors.black,
-                ),
-                backgroundColor: Colors.grey[200],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: BorderSide(
-                    color: _selectedStatus == status
-                            ? theme.primaryColor
-                            : Colors.grey[300] ?? Colors.grey,
-                  )
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 20),
-          
-          // Поле за снимка
-          GestureDetector(
-            onTap: () => _showImageSourceActionSheet(context),
+          Center(
             child: Container(
-              height: 150,
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: scheme.outlineVariant,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Подай сигнал за животно',
+            style: TextStyle(
+              color: scheme.onSurface,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Избери състояние, добави снимка и кратко описание.',
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final crossAxisCount = constraints.maxWidth > 560 ? 4 : 2;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _statuses.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 3.2,
+                ),
+                itemBuilder: (context, index) {
+                  final status = _statuses[index];
+                  final selected = _selectedStatus == status;
+                  final color = _statusColor(status);
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedStatus = status;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: selected ? color : color.withOpacity(0.13),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: selected ? color : color.withOpacity(0.35),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            _statusIcon(status),
+                            size: 16,
+                            color: selected ? Colors.white : color,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              status,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: selected ? Colors.white : color,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+          const SizedBox(height: 14),
+          InkWell(
+            onTap: () => _showImageSourceActionSheet(context),
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              height: 148,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey[400] ?? Colors.grey),
+                color: scheme.surfaceVariant.withOpacity(0.55),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: scheme.outlineVariant),
                 image: _imageFile != null
-                  ? DecorationImage(
-                      image: FileImage(_imageFile!),
-                      fit: BoxFit.cover
-                    )
-                  : null,
+                    ? DecorationImage(
+                        image: FileImage(_imageFile!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
               ),
               child: _imageFile == null
-                ? const Center(
-                    child: Column(
+                  ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.camera_alt, color: Colors.grey, size: 40),
-                        Text("Добави снимка", style: TextStyle(color: Colors.grey)),
+                        Icon(Icons.add_a_photo_outlined, color: scheme.primary, size: 32),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Добави снимка',
+                          style: TextStyle(
+                            color: scheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
+                    )
+                  : Align(
+                      alignment: Alignment.topRight,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: CircleAvatar(
+                          radius: 14,
+                          backgroundColor: Colors.black54,
+                          child: IconButton(
+                            onPressed: () {
+                              setState(() {
+                                _imageFile = null;
+                              });
+                            },
+                            padding: EdgeInsets.zero,
+                            iconSize: 14,
+                            icon: const Icon(Icons.close, color: Colors.white),
+                          ),
+                        ),
+                      ),
                     ),
-                  )
-                : null,
             ),
           ),
-          const SizedBox(height: 20),
-          
-          // Поле за описание
+          const SizedBox(height: 12),
           TextField(
             controller: _descriptionController,
-            decoration: InputDecoration(
-              labelText: "Кратко описание (незадължително)",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: theme.primaryColor, width: 2),
-              ),
-            ),
             maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Кратко описание (по желание)',
+            ),
           ),
-          const SizedBox(height: 20),
-          
-          // Бутон за изпращане
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
+            child: ElevatedButton.icon(
               onPressed: _handleSubmit,
+              icon: const Icon(Icons.send_rounded),
+              label: const Text('Изпрати сигнал'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: theme.primaryColor,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Text(
-                "Изпрати сигнал",
-                style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                padding: const EdgeInsets.symmetric(vertical: 14),
               ),
             ),
           ),
-          const SizedBox(height: 10),
         ],
       ),
     );

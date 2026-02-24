@@ -26,6 +26,7 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     // Списък с всички страници в приложението - дефиниран в build за реактивност
     final List<Widget> pages = <Widget>[
       const MapScreen(),      
@@ -44,11 +45,11 @@ class _MainScaffoldState extends State<MainScaffold> {
       // Долно навигационно меню
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: scheme.surface,
           boxShadow: [
             BoxShadow(
               blurRadius: 20,
-              color: Colors.black.withOpacity(.1),
+              color: scheme.shadow.withOpacity(.12),
             )
           ],
         ),
@@ -56,15 +57,15 @@ class _MainScaffoldState extends State<MainScaffold> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 8),
             child: GNav(
-              rippleColor: Colors.grey[300]!,
-              hoverColor: Colors.grey[100]!,
+              rippleColor: scheme.surfaceVariant,
+              hoverColor: scheme.surfaceVariant,
               gap: 4,
-              activeColor: Colors.white,
+              activeColor: scheme.onPrimary,
               iconSize: 24,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
               duration: const Duration(milliseconds: 400),
-              tabBackgroundColor: const Color(0xFF0B8457), // Green primary
-              color: Colors.grey[600], // Inactive color
+              tabBackgroundColor: scheme.primary,
+              color: scheme.onSurfaceVariant,
               tabs: const [
                  GButton(
                   icon: Icons.map_outlined,

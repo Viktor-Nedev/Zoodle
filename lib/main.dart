@@ -9,6 +9,8 @@ import 'services/notification_service.dart';
 
 import 'theme/app_theme.dart';
 
+const String _mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -18,8 +20,12 @@ void main() async {
   );
 
   // Инициализирай Mapbox
-  MapboxOptions.setAccessToken(
-      "pk.eyJ1IjoidmlrZGV2IiwiYSI6ImNtZ3V5d2JkdzAwZ2Myb3NneXZoYm84M2cifQ.5OV7UwssKzH5Emz7T8aZ5w");
+  if (_mapboxAccessToken.isEmpty) {
+    throw Exception(
+      'Missing MAPBOX_ACCESS_TOKEN. Run with --dart-define-from-file=.env',
+    );
+  }
+  MapboxOptions.setAccessToken(_mapboxAccessToken);
 
   runApp(const AnimalRescueApp());
 }
@@ -37,11 +43,16 @@ class AnimalRescueApp extends StatefulWidget {
 class _AnimalRescueAppState extends State<AnimalRescueApp> {
   ThemeMode _themeMode = ThemeMode.light;
 
-  void toggleTheme() {
+  ThemeMode get themeMode => _themeMode;
+
+  void setThemeMode(ThemeMode mode) {
     setState(() {
-      _themeMode =
-          _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+      _themeMode = mode;
     });
+  }
+
+  void toggleTheme() {
+    setThemeMode(_themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light);
   }
 
   @override

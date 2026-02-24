@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,9 +9,9 @@ import 'dart:io';
 
 import 'package:url_launcher/url_launcher.dart';
 
-import '../auth/login_screen.dart';
 import '../main.dart';
 import 'events_page.dart' as events_model;
+import '../widgets/full_screen_image_viewer.dart';
 
 // Модел за мисии и баджове
 class BadgeMission {
@@ -86,7 +85,6 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   List<Badge> _earnedBadges = [];
-  String _profileImageUrl = 'https://picsum.photos/200/200?random=5';
   User? _currentUser;
   Map<String, dynamic>? _userData;
   CalendarFormat _calendarFormat = CalendarFormat.month;
@@ -218,7 +216,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: Colors.green[50],
+        backgroundColor: Theme.of(context).colorScheme.surface,
         appBar: AppBar(
           title: Text(widget.userId != null ? 'Профил' : 'Моят Профил'),
           elevation: 0,
@@ -228,7 +226,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.green[50],
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: Text(widget.userId != null ? 'Профил' : 'Моят Профил'),
         elevation: 0,
@@ -292,12 +290,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   _editProfile();
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.brightness_6_outlined, color: Color(0xFF0B8457)),
-                title: const Text('Смяна на тема'),
-                onTap: () {
-                  AnimalRescueApp.of(context).toggleTheme();
-                  Navigator.pop(context);
+              SwitchListTile(
+                secondary: const Icon(Icons.brightness_6_outlined, color: Color(0xFF0B8457)),
+                title: const Text('Тъмна тема'),
+                value: AnimalRescueApp.of(context).themeMode == ThemeMode.dark,
+                onChanged: (value) {
+                  AnimalRescueApp.of(context)
+                      .setThemeMode(value ? ThemeMode.dark : ThemeMode.light);
                 },
               ),
               ListTile(
@@ -326,6 +325,8 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           _buildProfileInfo(),
           const SizedBox(height: 24),
+          if (widget.userId == null) _buildAlbumSection(),
+          if (widget.userId == null) const SizedBox(height: 24),
           if (widget.userId == null) _buildMissionsSection(),
           if (widget.userId == null) const SizedBox(height: 24),
           if (widget.userId == null) _buildCalendarSection(),
@@ -424,6 +425,71 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAlbumSection() {
+    final user = _currentUser;
+    if (user == null) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(Icons.photo_library_outlined, color: scheme.primary),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Zoodle AI Албум',
+                    style: TextStyle(
+                      color: scheme.onSurface,
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Разгледай запазените AI снимки в профила.',
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: _openAlbumPage,
+              child: const Text('Отвори'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openAlbumPage() {
+    final user = _currentUser;
+    if (user == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfileAlbumPage(userId: user.uid),
       ),
     );
   }
@@ -668,7 +734,7 @@ class _ProfilePageState extends State<ProfilePage> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.green[50],
+        color: Theme.of(context).colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -1042,18 +1108,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-
-
-  // Опция в настройките
-  Widget _buildSettingsOption(IconData icon, String text, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.green[700]),
-      title: Text(text),
-      trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[500]),
-      onTap: onTap,
-    );
-  }
-
   // Редактиране на профил
   void _editProfile() {
     final nameController =
@@ -1090,37 +1144,6 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-
-
-
-
-
-  // Изход от профила
- void _logout() {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Изход от профила'),
-      content:
-          const Text('Сигурни ли сте, че искате да излезете от профила си?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('Отказ', style: TextStyle(color: Colors.green[700])),
-        ),
-        TextButton(
-          onPressed: () async {
-            await FirebaseAuth.instance.signOut();
-            if (context.mounted) {
-              Navigator.pop(context);
-            }
-          },
-          child: const Text('Изход', style: TextStyle(color: Colors.red)),
-        ),
-      ],
-    ),
-  );
-}
 
   // Изпращане на съобщение
   void _sendMessage() async {
@@ -1173,6 +1196,163 @@ class _ProfilePageState extends State<ProfilePage> {
       SnackBar(
         content: Text(message),
         duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+}
+
+class ProfileAlbumPage extends StatelessWidget {
+  final String userId;
+  const ProfileAlbumPage({super.key, required this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Zoodle AI Албум'),
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .collection('album')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data == null) {
+            return const Center(child: Text('Неуспешно зареждане на албума.'));
+          }
+
+          final docs = snapshot.data!.docs.toList()
+            ..sort((a, b) {
+              final ta = (a['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+              final tb = (b['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+              return tb.compareTo(ta);
+            });
+
+          if (docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.photo_library_outlined, size: 56, color: scheme.outline),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Все още нямате запазени AI снимки.',
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return GridView.builder(
+            padding: const EdgeInsets.all(14),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 0.78,
+            ),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final data = docs[index].data() as Map<String, dynamic>;
+              final imageUrl = (data['imageUrl'] ?? '').toString();
+              final animalType = (data['animalType'] ?? 'Животно').toString();
+              final breed = (data['breed'] ?? '').toString();
+              final isRedBook = data['isRedBook'] == true;
+
+              return InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: imageUrl.isEmpty
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                FullScreenImageViewer(imageUrl: imageUrl),
+                          ),
+                        );
+                      },
+                child: Card(
+                  margin: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                          child: imageUrl.isEmpty
+                              ? Container(
+                                  color: scheme.surfaceVariant,
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.image_not_supported_outlined,
+                                      color: scheme.outline,
+                                      size: 34,
+                                    ),
+                                  ),
+                                )
+                              : CachedNetworkImage(
+                                  imageUrl: imageUrl,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              animalType,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: scheme.onSurface,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            if (breed.isNotEmpty)
+                              Text(
+                                breed,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: scheme.onSurfaceVariant,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            if (isRedBook)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'Червена книга',
+                                  style: TextStyle(
+                                    color: Colors.red[700],
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }

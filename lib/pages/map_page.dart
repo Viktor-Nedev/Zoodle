@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -73,35 +72,40 @@ class _MapScreenState extends State<MapScreen>
   final Map<String, String> _annotationIdToDocId = {};
 
   geo.Position? _currentPosition;
+  StreamSubscription<geo.Position>? _locationSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _markersSubscription;
 
   final Set<String> _allAnimalFilters = {'Ранено', 'Болно', 'Изгубено', 'Опасно'};
   Set<String> _activeFilters = {'Ранено', 'Болно', 'Изгубено', 'Опасно'};
+  bool _isMapInitialized = false;
+  bool _managersReady = false;
 
   late AnimationController _legendAnimationController;
   late Animation<double> _legendFadeAnimation;
   late Animation<Offset> _legendSlideAnimation;
 
   Map<String, Uint8List> _markerImages = {};
+  bool _markerImagesLoaded = false;
 
   @override
   void initState() {
     super.initState();
+    _activeFilters = Set.from(_allAnimalFilters);
     _initializeAnimations();
     _loadMarkerImages().then((_) {
-      _loadUserData().then((_) {
-        _initializeMap();
-      });
+      _loadUserData();
     });
   }
 
   // Зареждане на изображения за маркерите
   Future<void> _loadMarkerImages() async {
+    if (_markerImagesLoaded) return;
     try {
       _markerImages['Опасно'] = await _loadImage('assets/images/dangerous.png');
       _markerImages['Изгубено'] = await _loadImage('assets/images/lost.png');
       _markerImages['Болно'] = await _loadImage('assets/images/sick.png');
       _markerImages['Ранено'] = await _loadImage('assets/images/injured.png');
+      _markerImagesLoaded = true;
       print("Маркерните снимки са заредени успешно");
     } catch (e) {
       print("Грешка при зареждане на маркерни снимки: $e");
@@ -149,6 +153,7 @@ class _MapScreenState extends State<MapScreen>
   @override
   void dispose() {
     _legendAnimationController.dispose();
+    _locationSubscription?.cancel();
     _markersSubscription?.cancel();
     _mapCreated = false;
     mapboxMap?.dispose();
@@ -158,13 +163,18 @@ class _MapScreenState extends State<MapScreen>
   void _onMapCreated(MapboxMap mapboxMap) {
     this.mapboxMap = mapboxMap;
     _mapCreated = true;
+    _activeFilters = Set.from(_allAnimalFilters);
     _initializeMap();
   }
 
   // Инициализация на картата
   void _initializeMap() async {
+    if (!_mapCreated || mapboxMap == null || _isMapInitialized) return;
+    _isMapInitialized = true;
     try {
+      await _loadMarkerImages();
       print("Започва инициализация на картата...");
+      await _setupMarkerManagers();
       await _initializeWithTimeout();
       _startLocationTracking();
       setState(() {
@@ -174,10 +184,10 @@ class _MapScreenState extends State<MapScreen>
         });
       });
       print("Mapbox картата е заредена успешно!");
-      _setupMarkerManagers();
       _loadMarkersFromFirestore();
     } catch (e) {
       print("Грешка при инициализация на картата: $e");
+      _isMapInitialized = false;
       if (mounted) {
         setState(() => _isLoading = false);
         _showMessage('Грешка при зареждане на картата. Моля, опитайте отново.');
@@ -225,6 +235,11 @@ class _MapScreenState extends State<MapScreen>
   // Зареждане на потребителски данни
   Future<void> _loadUserData() async {
     _currentUser = FirebaseAuth.instance.currentUser;
+    if (mounted) {
+      setState(() {
+        _activeFilters = Set.from(_allAnimalFilters);
+      });
+    }
     if (_currentUser != null) {
       try {
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
@@ -235,7 +250,6 @@ class _MapScreenState extends State<MapScreen>
           setState(() {
             _userData = userDoc.data() as Map<String, dynamic>?;
             _userRole = _userData?['role'] ?? 'user';
-            _activeFilters = Set.from(_allAnimalFilters);
             print("Потребителски данни заредени: $_userRole");
             print("Всички филтри са активни по подразбиране: $_activeFilters");
           });
@@ -248,9 +262,9 @@ class _MapScreenState extends State<MapScreen>
 
   // Стартиране на проследяване на локацията
   void _startLocationTracking() {
-    _markersSubscription?.cancel();
+    _locationSubscription?.cancel();
 
-    geo.Geolocator.getPositionStream(
+    _locationSubscription = geo.Geolocator.getPositionStream(
       locationSettings: const geo.LocationSettings(
         accuracy: geo.LocationAccuracy.best,
         distanceFilter: 5,
@@ -266,14 +280,20 @@ class _MapScreenState extends State<MapScreen>
   }
 
   // Настройка на мениджъри за маркери
-  void _setupMarkerManagers() async {
+  Future<void> _setupMarkerManagers() async {
     if (mapboxMap == null) return;
+    if (_managersReady &&
+        _myLocationManager != null &&
+        _dataMarkersManager != null) {
+      return;
+    }
     _myLocationManager = await mapboxMap!.annotations.createCircleAnnotationManager();
     _dataMarkersManager = await mapboxMap!.annotations.createPointAnnotationManager();
 
     _dataMarkersManager?.addOnPointAnnotationClickListener(
       MyPointAnnotationClickListener(_handleMarkerClick)
     );
+    _managersReady = true;
   }
 
   // Обработка на кликване върху маркер
@@ -562,41 +582,73 @@ class _MapScreenState extends State<MapScreen>
     Set<String> tempFilters = Set.from(_activeFilters);
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
+        final scheme = Theme.of(context).colorScheme;
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return Padding(
-              padding: const EdgeInsets.all(20.0),
+            return Container(
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Филтри", style: Theme.of(context).textTheme.headlineSmall),
-                  const SizedBox(height: 20),
-                  ..._allAnimalFilters.map((status) {
-                    return CheckboxListTile(
-                      title: Text(status),
-                      value: tempFilters.contains(status),
-                      onChanged: (bool? isChecked) {
-                        setModalState(() {
-                          if (isChecked == true) {
-                            tempFilters.add(status);
-                          } else {
-                            tempFilters.remove(status);
-                          }
-                        });
-                      },
-                      activeColor: Colors.green,
-                    );
-                  }).toList(),
-                  const SizedBox(height: 20),
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: scheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Филтри за сигнали',
+                    style: TextStyle(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 20,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Покажи само типовете, които те интересуват.',
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _allAnimalFilters.map((status) {
+                      final isSelected = tempFilters.contains(status);
+                      return FilterChip(
+                        label: Text(status),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setModalState(() {
+                            if (selected) {
+                              tempFilters.add(status);
+                            } else {
+                              tempFilters.remove(status);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
+                    child: ElevatedButton.icon(
                       onPressed: () {
                         setState(() {
                           _activeFilters = Set.from(tempFilters);
@@ -604,8 +656,8 @@ class _MapScreenState extends State<MapScreen>
                         _loadMarkersFromFirestore();
                         Navigator.pop(context);
                       },
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                      child: const Text("Приложи", style: TextStyle(color: Colors.white)),
+                      icon: const Icon(Icons.done_all_rounded),
+                      label: const Text('Приложи филтрите'),
                     ),
                   ),
                 ],
@@ -852,43 +904,47 @@ class _MapScreenState extends State<MapScreen>
   void _showStyleSelectionDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Изберете стил на картата'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(Icons.map, color: Colors.green[700]),
-              title: const Text('Стандартен'),
-              onTap: () {
-                _changeMapStyle("mapbox://styles/vikdev/cmgs0el6h00f101qx22dp3odf");
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.satellite, color: Colors.green[700]),
-              title: const Text('Сателитен'),
-              onTap: () {
-                _changeMapStyle(MapboxStyles.SATELLITE);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.dark_mode, color: Colors.green[700]),
-              title: const Text('Тъмен'),
-              onTap: () {
-                _changeMapStyle(MapboxStyles.DARK);
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
+      builder: (context) {
+        final scheme = Theme.of(context).colorScheme;
+        return AlertDialog(
+          title: const Text('Изберете стил на картата'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.map, color: scheme.primary),
+                title: const Text('Стандартен'),
+                onTap: () {
+                  _changeMapStyle("mapbox://styles/vikdev/cmgs0el6h00f101qx22dp3odf");
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.satellite, color: scheme.primary),
+                title: const Text('Сателитен'),
+                onTap: () {
+                  _changeMapStyle(MapboxStyles.SATELLITE);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.dark_mode, color: scheme.primary),
+                title: const Text('Тъмен'),
+                onTap: () {
+                  _changeMapStyle(MapboxStyles.DARK);
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   // Изграждане на елемент от легендата
   Widget _buildLegendItem(Color color, String text) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -899,7 +955,7 @@ class _MapScreenState extends State<MapScreen>
             decoration: BoxDecoration(
               color: color,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
+              border: Border.all(color: scheme.surface, width: 2),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.2),
@@ -912,8 +968,8 @@ class _MapScreenState extends State<MapScreen>
           const SizedBox(width: 12),
           Text(
             text,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: scheme.onInverseSurface,
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -924,9 +980,47 @@ class _MapScreenState extends State<MapScreen>
   }
 
   // Бутон за меню на картата
+  PopupMenuEntry<String> _buildMapMenuItem({
+    required String value,
+    required IconData icon,
+    required String title,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: scheme.primary),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            title,
+            style: TextStyle(
+              color: scheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMapMenuButton() {
+    final scheme = Theme.of(context).colorScheme;
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, color: Colors.green),
+      tooltip: 'Опции на картата',
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: scheme.surface,
+      elevation: 8,
+      position: PopupMenuPosition.under,
+      icon: Icon(Icons.more_vert, color: scheme.primary),
       onSelected: (value) {
         switch (value) {
           case 'filter':
@@ -947,41 +1041,30 @@ class _MapScreenState extends State<MapScreen>
         }
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        const PopupMenuItem<String>(
+        _buildMapMenuItem(
           value: 'filter',
-          child: ListTile(
-            leading: Icon(Icons.filter_list_rounded, color: Colors.green),
-            title: Text('Филтри'),
-          ),
+          icon: Icons.filter_list_rounded,
+          title: 'Филтри',
         ),
-
-        const PopupMenuItem<String>(
+        _buildMapMenuItem(
           value: 'location',
-          child: ListTile(
-            leading: Icon(Icons.my_location_rounded, color: Colors.green),
-            title: Text('Моята Локация'),
-          ),
+          icon: Icons.my_location_rounded,
+          title: 'Моята локация',
         ),
-        const PopupMenuItem<String>(
-          value: 'call',
-          child: ListTile(
-            leading: Icon(Icons.call, color: Colors.green),
-            title: Text('Спешен номер'),
-          ),
-        ),
-        const PopupMenuItem<String>(
+        _buildMapMenuItem(
           value: 'legend',
-          child: ListTile(
-            leading: Icon(Icons.legend_toggle_rounded, color: Colors.green),
-            title: Text('Легенда'),
-          ),
+          icon: Icons.legend_toggle_rounded,
+          title: 'Легенда',
         ),
-        const PopupMenuItem<String>(
+        _buildMapMenuItem(
           value: 'style',
-          child: ListTile(
-            leading: Icon(Icons.style, color: Colors.green),
-            title: Text('Смени стил на картата'),
-          ),
+          icon: Icons.style,
+          title: 'Смени стил',
+        ),
+        _buildMapMenuItem(
+          value: 'call',
+          icon: Icons.call,
+          title: 'Спешен номер',
         ),
       ],
     );
@@ -989,9 +1072,10 @@ class _MapScreenState extends State<MapScreen>
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Карта на сигналите"),
+        title: const Text("Карта и сигнали"),
         elevation: 0,
         actions: [
           _buildMapMenuButton(),
@@ -1014,16 +1098,16 @@ class _MapScreenState extends State<MapScreen>
           ),
           if (_isLoading)
             Container(
-              color: Colors.white.withOpacity(0.9),
-              child: const Center(
+              color: scheme.surface.withOpacity(0.88),
+              child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(color: Colors.green),
-                    SizedBox(height: 20),
+                    CircularProgressIndicator(color: scheme.primary),
+                    const SizedBox(height: 20),
                     Text(
                       'Зареждане на картата...',
-                      style: TextStyle(fontSize: 16, color: Colors.black54),
+                      style: TextStyle(fontSize: 16, color: scheme.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -1086,10 +1170,8 @@ class _MapScreenState extends State<MapScreen>
       child: AnimatedOpacity(
         opacity: _uiVisible ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 500),
-        child: Column(
-          children: [
-            PulsingReportButton(onPressed: _showReportPanel),
-          ],
+        child: Center(
+          child: PulsingReportButton(onPressed: _showReportPanel),
         ),
       ),
     );
@@ -1097,6 +1179,7 @@ class _MapScreenState extends State<MapScreen>
 
   // Легенда за типовете маркери
   Widget _buildLegend() {
+    final scheme = Theme.of(context).colorScheme;
     return Positioned(
       right: 20,
       top: 80,
@@ -1108,8 +1191,9 @@ class _MapScreenState extends State<MapScreen>
             duration: const Duration(milliseconds: 300),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.8),
+              color: scheme.inverseSurface.withOpacity(0.92),
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: scheme.outlineVariant),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.3),
@@ -1122,10 +1206,10 @@ class _MapScreenState extends State<MapScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   'Легенда',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: scheme.onInverseSurface,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
