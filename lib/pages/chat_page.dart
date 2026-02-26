@@ -10,62 +10,15 @@ import 'dart:async';
 import 'dart:io';
 import 'package:async/async.dart';
 
-// Страница за профил на потребител
-class ProfilePage extends StatelessWidget {
-  final String userId;
-  const ProfilePage({super.key, required this.userId});
+import '../models/badge_data.dart';
+import 'profile_page.dart';
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Профил'),
-      ),
-      body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          final data = snapshot.data!.data() as Map<String, dynamic>?;
-          final String name = data?['username'] ?? data?['name'] ?? 'Потребител';
-          final String role = data?['role'] ?? 'user';
-          final bool isZoologist = role == 'zoologist';
-
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                  child: Icon(
-                    isZoologist ? Icons.medical_services : Icons.person,
-                    size: 50,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                    if (isZoologist) ...[
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.check_circle,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 24,
-                      ),
-                    ],
-                  ],
-                ),
-                Text(isZoologist ? 'Зоолог (Верифициран)' : 'Потребител', style: TextStyle(color: Colors.grey[600])),
-              ],
-            ),
-          );
-        },
-      ),
-    );
+CollectibleBadge? findBadgeById(String? badgeId) {
+  if (badgeId == null || badgeId.isEmpty) return null;
+  for (final badge in badgeCatalog) {
+    if (badge.id == badgeId) return badge;
   }
+  return null;
 }
 
 enum ChatFilter { all, direct, groups }
@@ -166,7 +119,64 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  String _normalizeSearch(String input) => input.trim().toLowerCase();
+  String _normalizeSearch(String input) {
+    return input
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  String _userNameFromData(Map<String, dynamic> data) {
+    final raw = (data['username'] ?? data['name'] ?? data['displayName'] ?? '')
+        .toString()
+        .trim();
+    if (raw.isNotEmpty) return raw;
+    final email = (data['email'] ?? '').toString().trim();
+    if (email.contains('@')) return email.split('@').first;
+    return 'Потребител';
+  }
+
+  bool _matchesUserQuery(Map<String, dynamic> data, String normalizedQuery) {
+    if (normalizedQuery.isEmpty) return true;
+    final q = _normalizeSearch(normalizedQuery);
+    final qNoSpace = q.replaceAll(' ', '');
+    final parts = q.split(' ').where((part) => part.isNotEmpty);
+
+    final name = _normalizeSearch(_userNameFromData(data));
+    final email = _normalizeSearch((data['email'] ?? '').toString());
+    final displayName =
+        _normalizeSearch((data['displayName'] ?? '').toString());
+
+    final fields = <String>[
+      name,
+      name.replaceAll(' ', ''),
+      email,
+      displayName,
+    ];
+
+    if (fields.any((field) => field.contains(q) || field.contains(qNoSpace))) {
+      return true;
+    }
+
+    return parts.every((part) {
+      final compactPart = part.replaceAll(' ', '');
+      return fields.any((field) =>
+          field.contains(part) || field.contains(compactPart));
+    });
+  }
+
+  int _userSearchScore(Map<String, dynamic> data, String normalizedQuery) {
+    if (normalizedQuery.isEmpty) return 0;
+    final q = _normalizeSearch(normalizedQuery);
+    final name = _normalizeSearch(_userNameFromData(data));
+    final email = _normalizeSearch((data['email'] ?? '').toString());
+    if (name == q) return 0;
+    if (name.startsWith(q)) return 1;
+    if (email.startsWith(q)) return 2;
+    if (name.contains(q)) return 3;
+    if (email.contains(q)) return 4;
+    return 5;
+  }
 
   Future<void> _notifyUser({
     required String userId,
@@ -258,7 +268,10 @@ class _ChatPageState extends State<ChatPage> {
         }, SetOptions(merge: true));
 
         if (eventId.isNotEmpty) {
-          await FirebaseFirestore.instance.collection('events').doc(eventId).set({
+          await FirebaseFirestore.instance
+              .collection('events')
+              .doc(eventId)
+              .set({
             'attendees': FieldValue.arrayUnion([user.uid]),
           }, SetOptions(merge: true));
         } else {
@@ -384,7 +397,8 @@ class _ChatPageState extends State<ChatPage> {
               ...pending.take(3).map((invite) {
                 final data = invite.data() as Map<String, dynamic>? ?? {};
                 final group = (data['channelName'] ?? 'Група').toString();
-                final inviter = (data['inviterName'] ?? 'Администратор').toString();
+                final inviter =
+                    (data['inviterName'] ?? 'Администратор').toString();
                 return Container(
                   margin: const EdgeInsets.only(top: 8),
                   padding: const EdgeInsets.all(10),
@@ -537,7 +551,8 @@ class _ChatPageState extends State<ChatPage> {
               children: [
                 Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
                 SizedBox(height: 16),
-                Text('Нямате активни чатове', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                Text('Нямате активни чатове',
+                    style: TextStyle(fontSize: 16, color: Colors.grey)),
               ],
             ),
           );
@@ -550,7 +565,8 @@ class _ChatPageState extends State<ChatPage> {
               children: [
                 Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
                 SizedBox(height: 16),
-                Text('Няма резултати', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                Text('Няма резултати',
+                    style: TextStyle(fontSize: 16, color: Colors.grey)),
               ],
             ),
           );
@@ -583,7 +599,8 @@ class _ChatPageState extends State<ChatPage> {
     if (user == null) return;
     if (user.uid == otherUserId) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Не можете да започнете чат със себе си.')),
+        const SnackBar(
+            content: Text('Не можете да започнете чат със себе си.')),
       );
       return;
     }
@@ -678,7 +695,8 @@ class _ChatPageState extends State<ChatPage> {
                       const SizedBox(height: 12),
                       const Text(
                         'Нов чат',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 12),
                       TextField(
@@ -695,53 +713,64 @@ class _ChatPageState extends State<ChatPage> {
                       const SizedBox(height: 12),
                       Expanded(
                         child: StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance.collection('users').snapshots(),
+                          stream: FirebaseFirestore.instance
+                              .collection('users')
+                              .snapshots(),
                           builder: (context, snapshot) {
                             if (!snapshot.hasData) {
-                              return const Center(child: CircularProgressIndicator());
+                              return const Center(
+                                  child: CircularProgressIndicator());
                             }
                             final docs = snapshot.data!.docs;
                             final filtered = docs.where((doc) {
                               if (doc.id == _currentUser?.uid) return false;
                               final data = doc.data() as Map<String, dynamic>;
-                              final name = _normalizeSearch((data['username'] ?? data['name'] ?? '').toString());
-                              final email = _normalizeSearch((data['email'] ?? '').toString());
-                              if (localQuery.isEmpty) return true;
-                              return name.contains(localQuery) || email.contains(localQuery);
+                              return _matchesUserQuery(data, localQuery);
                             }).toList()
                               ..sort((a, b) {
                                 final aData = a.data() as Map<String, dynamic>;
                                 final bData = b.data() as Map<String, dynamic>;
-                                final aName = _normalizeSearch((aData['username'] ?? aData['name'] ?? '').toString());
-                                final bName = _normalizeSearch((bData['username'] ?? bData['name'] ?? '').toString());
-                                final aStarts = localQuery.isNotEmpty && aName.startsWith(localQuery);
-                                final bStarts = localQuery.isNotEmpty && bName.startsWith(localQuery);
-                                if (aStarts != bStarts) {
-                                  return aStarts ? -1 : 1;
+                                final aScore =
+                                    _userSearchScore(aData, localQuery);
+                                final bScore =
+                                    _userSearchScore(bData, localQuery);
+                                if (aScore != bScore) {
+                                  return aScore.compareTo(bScore);
                                 }
+                                final aName =
+                                    _normalizeSearch(_userNameFromData(aData));
+                                final bName =
+                                    _normalizeSearch(_userNameFromData(bData));
                                 return aName.compareTo(bName);
                               });
 
                             if (filtered.isEmpty) {
-                              return const Center(child: Text('Няма намерени потребители'));
+                              return const Center(
+                                  child: Text('Няма намерени потребители'));
                             }
 
                             return ListView.separated(
                               controller: scrollController,
                               itemCount: filtered.length,
-                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1),
                               itemBuilder: (context, index) {
                                 final doc = filtered[index];
                                 final data = doc.data() as Map<String, dynamic>;
-                                final name = data['username'] ?? data['name'] ?? 'Потребител';
+                                final name = _userNameFromData(data);
                                 final role = data['role'] ?? 'user';
                                 final isZoologist = role == 'zoologist';
                                 return ListTile(
                                   leading: CircleAvatar(
-                                    backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                                    backgroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceVariant,
                                     child: Icon(
-                                      isZoologist ? Icons.medical_services : Icons.person,
-                                      color: Theme.of(context).colorScheme.primary,
+                                      isZoologist
+                                          ? Icons.medical_services
+                                          : Icons.person,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                     ),
                                   ),
                                   title: Row(
@@ -751,13 +780,16 @@ class _ChatPageState extends State<ChatPage> {
                                         const SizedBox(width: 4),
                                         Icon(
                                           Icons.check_circle,
-                                          color: Theme.of(context).colorScheme.primary,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
                                           size: 16,
                                         ),
                                       ],
                                     ],
                                   ),
-                                  subtitle: Text(isZoologist ? 'Зоолог' : 'Потребител'),
+                                  subtitle: Text(
+                                      isZoologist ? 'Зоолог' : 'Потребител'),
                                   onTap: () {
                                     Navigator.pop(context);
                                     _startDirectChat(
@@ -784,7 +816,8 @@ class _ChatPageState extends State<ChatPage> {
 
   Stream<List<ChatChannel>> _combineStreams(
       Stream<QuerySnapshot> s1, Stream<QuerySnapshot> s2, String userId) {
-    return RxUtils.combineLatest2(s1, s2, (QuerySnapshot snap1, QuerySnapshot snap2) {
+    return RxUtils.combineLatest2(s1, s2,
+        (QuerySnapshot snap1, QuerySnapshot snap2) {
       final List<ChatChannel> list = [];
       for (var doc in snap1.docs) {
         list.add(ChatChannel.fromFirestore(doc, userId, isGroup: false));
@@ -794,7 +827,8 @@ class _ChatPageState extends State<ChatPage> {
       }
 
       // Сортиране по последно съобщение
-      list.sort((a, b) => b.timestamp?.compareTo(a.timestamp ?? Timestamp(0, 0)) ?? 0);
+      list.sort((a, b) =>
+          b.timestamp?.compareTo(a.timestamp ?? Timestamp(0, 0)) ?? 0);
       return list;
     });
   }
@@ -815,7 +849,8 @@ class _ChatPageState extends State<ChatPage> {
               Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ProfilePage(userId: channel.otherUserId),
+                    builder: (context) =>
+                        ProfilePage(userId: channel.otherUserId),
                   ));
             }
           },
@@ -840,7 +875,9 @@ class _ChatPageState extends State<ChatPage> {
                 child: Icon(
                   channel.isVet
                       ? Icons.medical_services
-                      : (channel.isGroup ? Icons.group_work : (showMembers ? Icons.group : Icons.person)),
+                      : (channel.isGroup
+                          ? Icons.group_work
+                          : (showMembers ? Icons.group : Icons.person)),
                   color: channel.isGroup
                       ? scheme.tertiary
                       : (channel.isVet ? scheme.primary : scheme.primary),
@@ -1008,7 +1045,7 @@ class ChatChannel {
   final bool isGroup;
   final Timestamp? timestamp;
   final bool isZoologist;
-  
+
   ChatChannel({
     required this.id,
     required this.name,
@@ -1025,9 +1062,10 @@ class ChatChannel {
     this.timestamp,
     this.isZoologist = false,
   });
-  
+
   // Създаване на обект от Firestore документ
-  factory ChatChannel.fromFirestore(DocumentSnapshot doc, String currentUserId, {bool isGroup = false}) {
+  factory ChatChannel.fromFirestore(DocumentSnapshot doc, String currentUserId,
+      {bool isGroup = false}) {
     var dataObj = doc.data();
     if (dataObj == null) {
       return ChatChannel(
@@ -1041,7 +1079,7 @@ class ChatChannel {
         isGroup: isGroup,
       );
     }
-    
+
     Map<String, dynamic> data = dataObj as Map<String, dynamic>;
     String chatName = data['name'] ?? 'Неизвестен канал';
     String otherId = '';
@@ -1049,7 +1087,8 @@ class ChatChannel {
 
     // Логика за индивидуални чатове
     if (!isGroup && data.containsKey('memberNames')) {
-      Map<String, dynamic>? names = data['memberNames'] as Map<String, dynamic>?;
+      Map<String, dynamic>? names =
+          data['memberNames'] as Map<String, dynamic>?;
       if (names != null) {
         for (var entry in names.entries) {
           if (entry.key != currentUserId) {
@@ -1092,9 +1131,10 @@ class ChatChannel {
       lastMessage = 'Започнете разговор';
     }
     bool isZoologist = data['otherRole'] == 'zoologist';
-    
+
     if (data.containsKey('memberRoles') && otherId.isNotEmpty) {
-      Map<String, dynamic>? roles = data['memberRoles'] as Map<String, dynamic>?;
+      Map<String, dynamic>? roles =
+          data['memberRoles'] as Map<String, dynamic>?;
       if (roles != null && roles.containsKey(otherId)) {
         isZoologist = roles[otherId] == 'zoologist';
       }
@@ -1104,7 +1144,8 @@ class ChatChannel {
 
     int unread = 0;
     final lastReadMap = data['lastRead'] as Map<String, dynamic>?;
-    final Timestamp? lastRead = lastReadMap != null ? lastReadMap[currentUserId] as Timestamp? : null;
+    final Timestamp? lastRead =
+        lastReadMap != null ? lastReadMap[currentUserId] as Timestamp? : null;
     final String lastSenderId = data['lastMessageSenderId'] ?? '';
     if (timestamp != null) {
       if (lastSenderId != currentUserId &&
@@ -1140,7 +1181,7 @@ class ChatDetailPage extends StatefulWidget {
     required this.channel,
     required this.collectionPath,
   });
-  
+
   @override
   State<ChatDetailPage> createState() => _ChatDetailPageState();
 }
@@ -1160,7 +1201,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   String _senderPhotoUrl = '';
   String? _editingMessageId;
   String? _editingOriginalText;
-  
+
   @override
   void initState() {
     super.initState();
@@ -1182,7 +1223,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     final user = _currentUser;
     if (user == null) return;
     try {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
       final userData = userDoc.data();
       _senderName = userData?['username'] ??
           userData?['name'] ??
@@ -1253,7 +1297,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       final docRef = FirebaseFirestore.instance
           .collection(widget.collectionPath)
           .doc(widget.channel.id);
-      await docRef.update({'lastRead.${user.uid}': FieldValue.serverTimestamp()});
+      await docRef
+          .update({'lastRead.${user.uid}': FieldValue.serverTimestamp()});
     } catch (e) {
       try {
         await FirebaseFirestore.instance
@@ -1291,7 +1336,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         .doc(widget.channel.id);
 
     try {
-      final docRef = messageId != null ? messagesRef.doc(messageId) : messagesRef.doc();
+      final docRef =
+          messageId != null ? messagesRef.doc(messageId) : messagesRef.doc();
       final messageData = {
         'senderId': user.uid,
         'text': messageText,
@@ -1605,7 +1651,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     }
   }
 
-  Future<void> _reportMessage(String messageId, Map<String, dynamic> message) async {
+  Future<void> _reportMessage(
+      String messageId, Map<String, dynamic> message) async {
     final user = _currentUser;
     if (user == null) return;
     try {
@@ -1678,16 +1725,20 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
             .doc(widget.channel.id)
             .snapshots(),
         builder: (context, chatSnapshot) {
-          final chatData = chatSnapshot.data?.data() as Map<String, dynamic>? ?? {};
-          final typingMap = (chatData['typing'] as Map?)?.cast<String, dynamic>() ?? {};
-          final lastReadMap = (chatData['lastRead'] as Map?)?.cast<String, dynamic>() ?? {};
+          final chatData =
+              chatSnapshot.data?.data() as Map<String, dynamic>? ?? {};
+          final typingMap =
+              (chatData['typing'] as Map?)?.cast<String, dynamic>() ?? {};
+          final lastReadMap =
+              (chatData['lastRead'] as Map?)?.cast<String, dynamic>() ?? {};
           final typingUsers = typingMap.entries
               .where((e) => e.value == true && e.key != _currentUser?.uid)
               .map((e) => e.key)
               .toList();
-          final Timestamp? otherLastRead = !widget.channel.isGroup && widget.channel.otherUserId.isNotEmpty
-              ? lastReadMap[widget.channel.otherUserId] as Timestamp?
-              : null;
+          final Timestamp? otherLastRead =
+              !widget.channel.isGroup && widget.channel.otherUserId.isNotEmpty
+                  ? lastReadMap[widget.channel.otherUserId] as Timestamp?
+                  : null;
 
           return Column(
             children: [
@@ -1707,7 +1758,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
                     if (snapshot.hasError) {
                       return Center(
-                        child: Text('Грешка при зареждане на съобщения: ${snapshot.error}'),
+                        child: Text(
+                            'Грешка при зареждане на съобщения: ${snapshot.error}'),
                       );
                     }
 
@@ -1717,10 +1769,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey),
+                            Icon(Icons.chat_bubble_outline,
+                                size: 64, color: Colors.grey),
                             SizedBox(height: 16),
                             Text('Няма съобщения'),
-                            Text('Бъдете първият, който пише', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            Text('Бъдете първият, който пише',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey)),
                           ],
                         ),
                       );
@@ -1729,7 +1784,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                     var messages = data.docs;
                     final currentUserId = _currentUser?.uid;
 
-                    final latestMsg = messages.isNotEmpty ? messages.first.data() as Map<String, dynamic> : null;
+                    final latestMsg = messages.isNotEmpty
+                        ? messages.first.data() as Map<String, dynamic>
+                        : null;
                     final latestTs = latestMsg?['timestamp'] as Timestamp?;
                     _markChatRead(latestTs);
 
@@ -1741,7 +1798,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                       itemBuilder: (context, index) {
                         final messageDoc = messages[index];
                         var msg = messageDoc.data() as Map<String, dynamic>;
-                        bool isMe = currentUserId != null && msg['senderId'] == currentUserId;
+                        bool isMe = currentUserId != null &&
+                            msg['senderId'] == currentUserId;
                         bool isZoologist = msg['senderRole'] == 'zoologist';
 
                         // Timestamp logic
@@ -1752,11 +1810,15 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                         // Date Header logic
                         bool showDateHeader = false;
                         if (index == messages.length - 1) {
-                          showDateHeader = true; // Always show for oldest message
+                          showDateHeader =
+                              true; // Always show for oldest message
                         } else {
-                          var prevMsg = messages[index + 1].data() as Map<String, dynamic>;
-                          Timestamp? prevTs = prevMsg['timestamp'] as Timestamp?;
-                          DateTime prevDate = prevTs?.toDate() ?? DateTime.now();
+                          var prevMsg = messages[index + 1].data()
+                              as Map<String, dynamic>;
+                          Timestamp? prevTs =
+                              prevMsg['timestamp'] as Timestamp?;
+                          DateTime prevDate =
+                              prevTs?.toDate() ?? DateTime.now();
 
                           if (messageDate.year != prevDate.year ||
                               messageDate.month != prevDate.month ||
@@ -1785,8 +1847,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                                 msg,
                                 isMe,
                                 time,
-                                senderName:
-                                    widget.channel.isGroup && !isMe ? msg['senderName'] : null,
+                                senderName: widget.channel.isGroup && !isMe
+                                    ? msg['senderName']
+                                    : null,
                                 isZoologist: isZoologist,
                                 isSeen: isSeen,
                               ),
@@ -1823,7 +1886,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(25),
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                              contentPadding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
                             ),
                             onChanged: _onTextChanged,
                             onSubmitted: (value) => _sendTextMessage(),
@@ -1831,11 +1895,15 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                         ),
                         const SizedBox(width: 8),
                         CircleAvatar(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onPrimary,
                           child: IconButton(
                             icon: Icon(
-                              _editingMessageId != null ? Icons.check : Icons.send,
+                              _editingMessageId != null
+                                  ? Icons.check
+                                  : Icons.send,
                             ),
                             onPressed: _sendTextMessage,
                           ),
@@ -1878,7 +1946,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         ),
         child: Text(
           text,
-          style: TextStyle(color: Colors.grey[800], fontSize: 12, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: Colors.grey[800],
+              fontSize: 12,
+              fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -1899,7 +1970,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     final String text = message['text'] ?? '';
     final String? imageUrl = message['imageUrl'] as String?;
     final String senderPhotoUrl = (message['senderPhotoUrl'] ?? '').toString();
-    final Map<String, dynamic>? replyTo = message['replyTo'] as Map<String, dynamic>?;
+    final Map<String, dynamic>? replyTo =
+        message['replyTo'] as Map<String, dynamic>?;
     final bool hasImage = imageUrl != null && imageUrl.isNotEmpty;
 
     Widget avatar = CircleAvatar(
@@ -1922,7 +1994,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           if (!isMe) ...[
             avatar,
@@ -1949,7 +2022,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                         ),
                         if (isZoologist) ...[
                           const SizedBox(width: 4),
-                          Icon(Icons.check_circle, color: scheme.primary, size: 12),
+                          Icon(Icons.check_circle,
+                              color: scheme.primary, size: 12),
                         ],
                       ],
                     ),
@@ -1959,7 +2033,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.68,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: isMe ? scheme.primary : scheme.surface,
                     borderRadius: BorderRadius.only(
@@ -1968,9 +2043,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                       bottomLeft: Radius.circular(isMe ? 20 : 0),
                       bottomRight: Radius.circular(isMe ? 0 : 20),
                     ),
-                    border: isMe
-                        ? null
-                        : Border.all(color: scheme.outlineVariant),
+                    border:
+                        isMe ? null : Border.all(color: scheme.outlineVariant),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.05),
@@ -1985,11 +2059,12 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                       if (replyTo != null)
                         Container(
                           margin: const EdgeInsets.only(bottom: 8),
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color:
-                                isMe ? scheme.primaryContainer : scheme.surfaceVariant,
+                            color: isMe
+                                ? scheme.primaryContainer
+                                : scheme.surfaceVariant,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -2029,7 +2104,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                         Text(
                           'Съобщението е изтрито',
                           style: TextStyle(
-                            color: isMe ? scheme.onPrimary : scheme.onSurfaceVariant,
+                            color: isMe
+                                ? scheme.onPrimary
+                                : scheme.onSurfaceVariant,
                             fontStyle: FontStyle.italic,
                           ),
                         )
@@ -2192,8 +2269,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   Widget _buildReplyPreview() {
     final scheme = Theme.of(context).colorScheme;
-    final hasText = _replyTo != null &&
-        (_replyTo!['text']?.toString().isNotEmpty ?? false);
+    final hasText =
+        _replyTo != null && (_replyTo!['text']?.toString().isNotEmpty ?? false);
     final replyText = hasText ? _replyTo!['text'] : 'Отговор на снимка';
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -2252,6 +2329,65 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
 
   String? _muteType; // '1h', '2h', '8h', '24h', 'always'
 
+  String _normalizeSearch(String input) {
+    return input
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  String _userNameFromData(Map<String, dynamic> data) {
+    final raw = (data['username'] ?? data['name'] ?? data['displayName'] ?? '')
+        .toString()
+        .trim();
+    if (raw.isNotEmpty) return raw;
+    final email = (data['email'] ?? '').toString().trim();
+    if (email.contains('@')) return email.split('@').first;
+    return 'Потребител';
+  }
+
+  bool _matchesUserQuery(Map<String, dynamic> data, String normalizedQuery) {
+    if (normalizedQuery.isEmpty) return true;
+    final q = _normalizeSearch(normalizedQuery);
+    final qNoSpace = q.replaceAll(' ', '');
+    final parts = q.split(' ').where((part) => part.isNotEmpty);
+
+    final name = _normalizeSearch(_userNameFromData(data));
+    final email = _normalizeSearch((data['email'] ?? '').toString());
+    final displayName =
+        _normalizeSearch((data['displayName'] ?? '').toString());
+
+    final fields = <String>[
+      name,
+      name.replaceAll(' ', ''),
+      email,
+      displayName,
+    ];
+
+    if (fields.any((field) => field.contains(q) || field.contains(qNoSpace))) {
+      return true;
+    }
+
+    return parts.every((part) {
+      final compactPart = part.replaceAll(' ', '');
+      return fields.any((field) =>
+          field.contains(part) || field.contains(compactPart));
+    });
+  }
+
+  int _userSearchScore(Map<String, dynamic> data, String normalizedQuery) {
+    if (normalizedQuery.isEmpty) return 0;
+    final q = _normalizeSearch(normalizedQuery);
+    final name = _normalizeSearch(_userNameFromData(data));
+    final email = _normalizeSearch((data['email'] ?? '').toString());
+    if (name == q) return 0;
+    if (name.startsWith(q)) return 1;
+    if (email.startsWith(q)) return 2;
+    if (name.contains(q)) return 3;
+    if (email.contains(q)) return 4;
+    return 5;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -2276,14 +2412,14 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
       final data = doc.data();
       final timestamp = data?['muteUntil'] as Timestamp?;
       final type = data?['muteType'] as String?;
-      
+
       setState(() {
         _muteUntil = timestamp?.toDate();
         // Fallback for legacy "Always" if type is missing
         if (_muteUntil != null && type == null) {
-           if (_muteUntil!.year > 3000) {
-             _muteType = 'always';
-           }
+          if (_muteUntil!.year > 3000) {
+            _muteType = 'always';
+          }
         } else {
           _muteType = type;
         }
@@ -2296,7 +2432,9 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
     if (userId == null) return;
 
     // Toggle off if already selected
-    if (_muteType == type && _muteUntil != null && _muteUntil!.isAfter(DateTime.now())) {
+    if (_muteType == type &&
+        _muteUntil != null &&
+        _muteUntil!.isAfter(DateTime.now())) {
       // Unmute
       await _updateMuteData(null, null);
       return;
@@ -2313,7 +2451,7 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
       // "Always" mute
       until = DateTime.now().add(const Duration(days: 36500)); // 100 years
     }
-    
+
     // If explict unmute (duration negative), clear type
     final newType = (duration != null && duration.isNegative) ? null : type;
 
@@ -2354,7 +2492,10 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
     if (mounted) {
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(until == null ? 'Известията са включени' : 'Известията са заглушени')),
+        SnackBar(
+            content: Text(until == null
+                ? 'Известията са включени'
+                : 'Известията са заглушени')),
       );
     }
   }
@@ -2369,13 +2510,13 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
           .collection('event_channels')
           .doc(widget.channel.id)
           .update({'name': newName});
-      
+
       final eventQuery = await FirebaseFirestore.instance
           .collection('events')
           .where('channelId', isEqualTo: widget.channel.id)
           .limit(1)
           .get();
-      
+
       if (eventQuery.docs.isNotEmpty) {
         await eventQuery.docs.first.reference.update({'title': newName});
       }
@@ -2442,13 +2583,18 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
 
   Future<void> _showMemberProfilePreview(String memberId) async {
     try {
-      final userDoc =
-          await FirebaseFirestore.instance.collection('users').doc(memberId).get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(memberId)
+          .get();
       final data = userDoc.data() ?? <String, dynamic>{};
-      final name = (data['username'] ?? data['name'] ?? 'Потребител').toString();
+      final name =
+          (data['username'] ?? data['name'] ?? 'Потребител').toString();
       final role = (data['role'] ?? 'user').toString();
       final email = (data['email'] ?? '').toString();
       final photo = (data['profilePictureUrl'] ?? '').toString();
+      final selectedBadgeId = (data['selectedBadgeId'] ?? '').toString();
+      final selectedBadge = findBadgeById(selectedBadgeId);
 
       if (!mounted) return;
       final scheme = Theme.of(context).colorScheme;
@@ -2472,20 +2618,45 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                CircleAvatar(
-                  radius: 34,
-                  backgroundColor: scheme.surfaceVariant,
-                  backgroundImage:
-                      photo.isNotEmpty ? CachedNetworkImageProvider(photo) : null,
-                  child: photo.isEmpty
-                      ? Icon(
-                          role == 'zoologist'
-                              ? Icons.medical_services
-                              : Icons.person,
-                          color: scheme.primary,
-                          size: 30,
-                        )
-                      : null,
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    CircleAvatar(
+                      radius: 34,
+                      backgroundColor: scheme.surfaceVariant,
+                      backgroundImage: photo.isNotEmpty
+                          ? CachedNetworkImageProvider(photo)
+                          : null,
+                      child: photo.isEmpty
+                          ? Icon(
+                              role == 'zoologist'
+                                  ? Icons.medical_services
+                                  : Icons.person,
+                              color: scheme.primary,
+                              size: 30,
+                            )
+                          : null,
+                    ),
+                    if (selectedBadge != null)
+                      Positioned(
+                        right: -4,
+                        bottom: -4,
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: scheme.surface,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: scheme.outlineVariant),
+                          ),
+                          child: Image.asset(
+                            selectedBadge.assetPath,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -2518,6 +2689,14 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
       );
     } catch (e) {
       print("Грешка при зареждане на профил: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Нямате достъп до този профил.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -2550,11 +2729,14 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Име на групата', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      const Text('Име на групата',
+                          style: TextStyle(color: Colors.grey, fontSize: 13)),
                       if (_isAdmin)
                         IconButton(
-                          icon: Icon(_isEditingName ? Icons.close : Icons.edit, color: scheme.primary, size: 20),
-                          onPressed: () => setState(() => _isEditingName = !_isEditingName),
+                          icon: Icon(_isEditingName ? Icons.close : Icons.edit,
+                              color: scheme.primary, size: 20),
+                          onPressed: () =>
+                              setState(() => _isEditingName = !_isEditingName),
                         ),
                     ],
                   ),
@@ -2579,7 +2761,8 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Text(
                         _nameController.text,
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                     ),
                 ],
@@ -2587,7 +2770,8 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
             ),
             const SizedBox(height: 24),
 
-            const Text('Администратор', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text('Администратор',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
             FutureBuilder<DocumentSnapshot>(
               future: FirebaseFirestore.instance
@@ -2599,8 +2783,11 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
-                final adminName = (data['username'] ?? data['name'] ?? 'Администратор').toString();
+                final data =
+                    snapshot.data!.data() as Map<String, dynamic>? ?? {};
+                final adminName =
+                    (data['username'] ?? data['name'] ?? 'Администратор')
+                        .toString();
                 final adminRole = (data['role'] ?? 'user').toString();
                 final adminPhoto = (data['profilePictureUrl'] ?? '').toString();
 
@@ -2611,7 +2798,8 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
                     border: Border.all(color: scheme.outlineVariant),
                   ),
                   child: ListTile(
-                    onTap: () => _showMemberProfilePreview(widget.channel.adminId),
+                    onTap: () =>
+                        _showMemberProfilePreview(widget.channel.adminId),
                     leading: CircleAvatar(
                       backgroundColor: scheme.surfaceVariant,
                       backgroundImage: adminPhoto.isNotEmpty
@@ -2630,8 +2818,11 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
                       adminName,
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
-                    subtitle: Text(adminRole == 'zoologist' ? 'Администратор • Зоолог' : 'Администратор'),
-                    trailing: Icon(Icons.workspace_premium, color: scheme.primary),
+                    subtitle: Text(adminRole == 'zoologist'
+                        ? 'Администратор • Зоолог'
+                        : 'Администратор'),
+                    trailing:
+                        Icon(Icons.workspace_premium, color: scheme.primary),
                   ),
                 );
               },
@@ -2639,7 +2830,8 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
             const SizedBox(height: 24),
 
             // Заглушаване
-            const Text('Известия', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text('Известия',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -2650,43 +2842,58 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
               child: Column(
                 children: [
                   ListTile(
-                    leading: Icon(isMuted ? Icons.notifications_off_outlined : Icons.notifications_active_outlined, 
+                    leading: Icon(
+                        isMuted
+                            ? Icons.notifications_off_outlined
+                            : Icons.notifications_active_outlined,
                         color: isMuted ? Colors.orange : scheme.primary),
-                    title: Text(isMuted ? 'Заглушено' : 'Активни известия', 
-                        style: TextStyle(fontWeight: FontWeight.bold, color: isMuted ? Colors.orange[800] : scheme.primary)),
-                    subtitle: isMuted 
-                        ? Text(_muteType == 'always' ? 'Известията са спрени' : 'Известията са спрени до ${DateFormat('dd.MM HH:mm').format(_muteUntil!)}', style: const TextStyle(color: Colors.red)) 
-                        : const Text('Ще получавате известия за нови съобщения', style: TextStyle(color: Colors.grey)),
+                    title: Text(isMuted ? 'Заглушено' : 'Активни известия',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color:
+                                isMuted ? Colors.orange[800] : scheme.primary)),
+                    subtitle: isMuted
+                        ? Text(
+                            _muteType == 'always'
+                                ? 'Известията са спрени'
+                                : 'Известията са спрени до ${DateFormat('dd.MM HH:mm').format(_muteUntil!)}',
+                            style: const TextStyle(color: Colors.red))
+                        : const Text('Ще получавате известия за нови съобщения',
+                            style: TextStyle(color: Colors.grey)),
                     // Trailing button removed as requested
                   ),
                   const Divider(),
-                    Center(
-                      child: Wrap(
-                        spacing: 8,
-                        alignment: WrapAlignment.center,
-                        children: [
-                          _muteChip('1ч', const Duration(hours: 1), '1h'),
-                          _muteChip('2ч', const Duration(hours: 2), '2h'),
-                          _muteChip('8ч', const Duration(hours: 8), '8h'),
-                          _muteChip('24ч', const Duration(hours: 24), '24h'),
-                          _muteChip('Винаги', null, 'always'),
-                          if (isMuted)
-                            ActionChip(
-                              label: const Text('Отглуши'),
-                              avatar: Icon(Icons.notifications_active, size: 16, color: scheme.primary),
-                              backgroundColor: scheme.primaryContainer,
-                              onPressed: () => _setMute(const Duration(seconds: -1), null), // Pass null type to clear selection
-                            ),
-                        ],
-                      ),
+                  Center(
+                    child: Wrap(
+                      spacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _muteChip('1ч', const Duration(hours: 1), '1h'),
+                        _muteChip('2ч', const Duration(hours: 2), '2h'),
+                        _muteChip('8ч', const Duration(hours: 8), '8h'),
+                        _muteChip('24ч', const Duration(hours: 24), '24h'),
+                        _muteChip('Винаги', null, 'always'),
+                        if (isMuted)
+                          ActionChip(
+                            label: const Text('Отглуши'),
+                            avatar: Icon(Icons.notifications_active,
+                                size: 16, color: scheme.primary),
+                            backgroundColor: scheme.primaryContainer,
+                            onPressed: () => _setMute(
+                                const Duration(seconds: -1),
+                                null), // Pass null type to clear selection
+                          ),
+                      ],
                     ),
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
 
             // Участници
-            const Text('Участници', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text('Участници',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
             if (_isAdmin)
               SizedBox(
@@ -2704,9 +2911,11 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
                   .doc(widget.channel.id)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                final members = List<String>.from(snapshot.data!['members'] ?? []);
-                
+                if (!snapshot.hasData)
+                  return const Center(child: CircularProgressIndicator());
+                final members =
+                    List<String>.from(snapshot.data!['members'] ?? []);
+
                 return Container(
                   decoration: BoxDecoration(
                     color: scheme.surface,
@@ -2720,32 +2929,86 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
                     itemBuilder: (context, index) {
                       final memberId = members[index];
                       return FutureBuilder<DocumentSnapshot>(
-                        future: FirebaseFirestore.instance.collection('users').doc(memberId).get(),
+                        future: FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(memberId)
+                            .get(),
                         builder: (context, userSnap) {
                           if (!userSnap.hasData) return const SizedBox();
-                          final userData = userSnap.data!.data() as Map<String, dynamic>?;
+                          final userData =
+                              userSnap.data!.data() as Map<String, dynamic>?;
                           // Check for 'username' first, then 'name', then fallback
-                          final name = userData?['username'] ?? userData?['name'] ?? 'Потребител';
+                          final name = userData?['username'] ??
+                              userData?['name'] ??
+                              'Потребител';
                           final role = userData?['role'] ?? 'user';
-                          final bool isMemberAdmin = memberId == widget.channel.adminId;
+                          final bool isMemberAdmin =
+                              memberId == widget.channel.adminId;
                           final bool isZoologist = role == 'zoologist';
+                          final selectedBadgeId =
+                              (userData?['selectedBadgeId'] ?? '').toString();
+                          final selectedBadge = findBadgeById(selectedBadgeId);
 
                           return ListTile(
                             leading: GestureDetector(
                               onTap: () => _showMemberProfilePreview(memberId),
-                              child: CircleAvatar(
-                                backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
-                                backgroundImage: (userData?['profilePictureUrl'] ?? '').toString().isNotEmpty
-                                    ? CachedNetworkImageProvider((userData?['profilePictureUrl'] ?? '').toString())
-                                    : null,
-                                child: (userData?['profilePictureUrl'] ?? '').toString().isEmpty
-                                    ? Icon(
-                                        isZoologist
-                                            ? Icons.medical_services
-                                            : Icons.person,
-                                        color: Theme.of(context).colorScheme.primary,
-                                      )
-                                    : null,
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceVariant,
+                                    backgroundImage: (userData?[
+                                                    'profilePictureUrl'] ??
+                                                '')
+                                            .toString()
+                                            .isNotEmpty
+                                        ? CachedNetworkImageProvider(
+                                            (userData?['profilePictureUrl'] ??
+                                                    '')
+                                                .toString())
+                                        : null,
+                                    child:
+                                        (userData?['profilePictureUrl'] ?? '')
+                                                .toString()
+                                                .isEmpty
+                                            ? Icon(
+                                                isZoologist
+                                                    ? Icons.medical_services
+                                                    : Icons.person,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                              )
+                                            : null,
+                                  ),
+                                  if (selectedBadge != null)
+                                    Positioned(
+                                      right: -2,
+                                      bottom: -2,
+                                      child: Container(
+                                        width: 20,
+                                        height: 20,
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surface,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .outlineVariant,
+                                          ),
+                                        ),
+                                        child: Image.asset(
+                                          selectedBadge.assetPath,
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                             title: Row(
@@ -2755,16 +3018,21 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
                                   const SizedBox(width: 4),
                                   Icon(
                                     Icons.check_circle,
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                     size: 16,
                                   ),
                                 ],
                               ],
                             ),
-                            subtitle: Text(isMemberAdmin ? 'Администратор' : (isZoologist ? 'Зоолог' : 'Участник')),
+                            subtitle: Text(isMemberAdmin
+                                ? 'Администратор'
+                                : (isZoologist ? 'Зоолог' : 'Участник')),
                             trailing: _isAdmin && !isMemberAdmin
                                 ? IconButton(
-                                    icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                                    icon: const Icon(
+                                        Icons.remove_circle_outline,
+                                        color: Colors.red),
                                     onPressed: () => _removeMember(memberId),
                                   )
                                 : null,
@@ -2777,7 +3045,7 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
               },
             ),
             const SizedBox(height: 32),
-            
+
             // Напускане на група
             if (!_isAdmin)
               SizedBox(
@@ -2791,7 +3059,9 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
                     foregroundColor: Colors.red,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: Colors.red[100]!)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        side: BorderSide(color: Colors.red[100]!)),
                   ),
                 ),
               ),
@@ -2804,8 +3074,10 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
 
   Widget _muteChip(String label, Duration? duration, String type) {
     final scheme = Theme.of(context).colorScheme;
-    final bool isSelected = _muteType == type && _muteUntil != null && _muteUntil!.isAfter(DateTime.now());
-    
+    final bool isSelected = _muteType == type &&
+        _muteUntil != null &&
+        _muteUntil!.isAfter(DateTime.now());
+
     return FilterChip(
       label: Text(label),
       selected: isSelected,
@@ -2813,14 +3085,16 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
       selectedColor: Colors.orange[100],
       checkmarkColor: Colors.orange[800],
       labelStyle: TextStyle(
-        color: isSelected ? Colors.orange[900] : scheme.primary, 
+        color: isSelected ? Colors.orange[900] : scheme.primary,
         fontSize: 12,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
       backgroundColor: scheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: isSelected ? BorderSide(color: Colors.orange[300]!) : BorderSide.none,
+        side: isSelected
+            ? BorderSide(color: Colors.orange[300]!)
+            : BorderSide.none,
       ),
     );
   }
@@ -2830,7 +3104,8 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
         .collection('event_channels')
         .doc(widget.channel.id)
         .get();
-    final currentMembers = List<String>.from(channelDoc.data()?['members'] ?? []);
+    final currentMembers =
+        List<String>.from(channelDoc.data()?['members'] ?? []);
 
     if (!mounted) return;
 
@@ -2868,13 +3143,14 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
                       const SizedBox(height: 12),
                       const Text(
                         'Покани участник',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         onChanged: (value) {
                           setModalState(() {
-                            localQuery = value.trim().toLowerCase();
+                            localQuery = _normalizeSearch(value);
                           });
                         },
                         decoration: const InputDecoration(
@@ -2885,41 +3161,64 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
                       const SizedBox(height: 12),
                       Expanded(
                         child: StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance.collection('users').snapshots(),
+                          stream: FirebaseFirestore.instance
+                              .collection('users')
+                              .snapshots(),
                           builder: (context, snapshot) {
                             if (!snapshot.hasData) {
-                              return const Center(child: CircularProgressIndicator());
+                              return const Center(
+                                  child: CircularProgressIndicator());
                             }
 
                             final docs = snapshot.data!.docs.where((doc) {
                               if (currentMembers.contains(doc.id)) return false;
                               final data = doc.data() as Map<String, dynamic>;
-                              final name = (data['username'] ?? data['name'] ?? '').toString().toLowerCase();
-                              final email = (data['email'] ?? '').toString().toLowerCase();
-                              if (localQuery.isEmpty) return true;
-                              return name.contains(localQuery) || email.contains(localQuery);
-                            }).toList();
+                              return _matchesUserQuery(data, localQuery);
+                            }).toList()
+                              ..sort((a, b) {
+                                final aData = a.data() as Map<String, dynamic>;
+                                final bData = b.data() as Map<String, dynamic>;
+                                final aScore =
+                                    _userSearchScore(aData, localQuery);
+                                final bScore =
+                                    _userSearchScore(bData, localQuery);
+                                if (aScore != bScore) {
+                                  return aScore.compareTo(bScore);
+                                }
+                                final aName =
+                                    _normalizeSearch(_userNameFromData(aData));
+                                final bName =
+                                    _normalizeSearch(_userNameFromData(bData));
+                                return aName.compareTo(bName);
+                              });
 
                             if (docs.isEmpty) {
-                              return const Center(child: Text('Няма потребители за покана'));
+                              return const Center(
+                                  child: Text('Няма потребители за покана'));
                             }
 
                             return ListView.separated(
                               controller: scrollController,
                               itemCount: docs.length,
-                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1),
                               itemBuilder: (context, index) {
                                 final doc = docs[index];
                                 final data = doc.data() as Map<String, dynamic>;
-                                final name = data['username'] ?? data['name'] ?? 'Потребител';
+                                final name = _userNameFromData(data);
                                 final role = data['role'] ?? 'user';
                                 final isZoologist = role == 'zoologist';
                                 return ListTile(
                                   leading: CircleAvatar(
-                                    backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                                    backgroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceVariant,
                                     child: Icon(
-                                      isZoologist ? Icons.medical_services : Icons.person,
-                                      color: Theme.of(context).colorScheme.primary,
+                                      isZoologist
+                                          ? Icons.medical_services
+                                          : Icons.person,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                     ),
                                   ),
                                   title: Row(
@@ -2929,13 +3228,16 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
                                         const SizedBox(width: 4),
                                         Icon(
                                           Icons.check_circle,
-                                          color: Theme.of(context).colorScheme.primary,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
                                           size: 16,
                                         ),
                                       ],
                                     ],
                                   ),
-                                  subtitle: Text(isZoologist ? 'Зоолог' : 'Потребител'),
+                                  subtitle: Text(
+                                      isZoologist ? 'Зоолог' : 'Потребител'),
                                   onTap: () async {
                                     Navigator.pop(context);
                                     await _addMember(doc.id);
@@ -2986,7 +3288,8 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
           .where('channelId', isEqualTo: widget.channel.id)
           .limit(1)
           .get();
-      final eventId = eventQuery.docs.isNotEmpty ? eventQuery.docs.first.id : '';
+      final eventId =
+          eventQuery.docs.isNotEmpty ? eventQuery.docs.first.id : '';
 
       final inviteId = '${widget.channel.id}_$memberId';
       await FirebaseFirestore.instance
@@ -3045,14 +3348,14 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
           .update({
         'members': FieldValue.arrayRemove([memberId])
       });
-      
+
       // Also update event attendees
       final eventQuery = await FirebaseFirestore.instance
           .collection('events')
           .where('channelId', isEqualTo: widget.channel.id)
           .limit(1)
           .get();
-      
+
       if (eventQuery.docs.isNotEmpty) {
         await eventQuery.docs.first.reference.update({
           'attendees': FieldValue.arrayRemove([memberId])
@@ -3062,7 +3365,8 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
       await _notifyUser(
         userId: memberId,
         title: 'Премахнати сте от група',
-        body: 'Администраторът ви премахна от "${_nameController.text.trim()}".',
+        body:
+            'Администраторът ви премахна от "${_nameController.text.trim()}".',
         type: 'group_member_removed',
         payload: {'channelId': widget.channel.id},
       );
@@ -3080,7 +3384,9 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
     try {
       if (_isAdmin) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Администраторът не може да напусне групата. Моля, изтрийте събитието.')),
+          const SnackBar(
+              content: Text(
+                  'Администраторът не може да напусне групата. Моля, изтрийте събитието.')),
         );
         return;
       }
@@ -3092,13 +3398,13 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
         'members': FieldValue.arrayRemove([userId])
       });
 
-       // Update event attendees
+      // Update event attendees
       final eventQuery = await FirebaseFirestore.instance
           .collection('events')
           .where('channelId', isEqualTo: widget.channel.id)
           .limit(1)
           .get();
-      
+
       if (eventQuery.docs.isNotEmpty) {
         await eventQuery.docs.first.reference.update({
           'attendees': FieldValue.arrayRemove([userId])
@@ -3111,6 +3417,3 @@ class _GroupSettingsPageState extends State<GroupSettingsPage> {
     }
   }
 }
-
-
-

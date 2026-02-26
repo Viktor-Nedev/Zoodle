@@ -184,13 +184,10 @@ class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateM
         return;
       }
 
-      // Record messenger before any async gap or pop if possible, 
-      // but showing snackbar BEFORE pop is usually safer.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Записване...')),
         );
-        Navigator.pop(context); 
       }
       
       print("Започва качване в албум...");
@@ -232,14 +229,23 @@ class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateM
 
       if (mounted) {
         _showSuccessSnackbar();
+        Navigator.pop(context);
       }
 
+    } on FirebaseException catch (e) {
+      print("ГРЕШКА при запис в албум: ${e.code} ${e.message}");
+      if (!mounted) return;
+      if (e.code == 'unauthorized' || e.code == 'unauthenticated') {
+        _showErrorSnackBar(
+          'Нямаш достъп до албума. Провери Storage правилата и входа в профила.',
+        );
+      } else {
+        _showErrorSnackBar('Грешка при запис: ${e.message ?? e.code}');
+      }
     } catch (e) {
       print("ГРЕШКА при запис в албум: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Грешка при запис: $e')),
-        );
+        _showErrorSnackBar('Грешка при запис: $e');
       }
     }
   }

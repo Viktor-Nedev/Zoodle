@@ -144,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen>
                     const SizedBox(height: 10),
                     // Заглавие на екрана за вход
                     const Text(
-                      "Вход в Спаси Животно",
+                      "Вход в Zoodle",
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,

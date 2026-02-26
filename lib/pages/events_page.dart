@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
-import '../main_scaffold.dart';
 import 'chat_page.dart';
 
 // Страница за събития и новини
@@ -265,6 +264,19 @@ class _EventsPageState extends State<EventsPage> {
           .orderBy('date', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Грешка при зареждане на събития: ${snapshot.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, color: Colors.redAccent),
+              ),
+            ),
+          );
+        }
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -278,8 +290,14 @@ class _EventsPageState extends State<EventsPage> {
           );
         }
 
-        List<Event> allEvents =
-            snapshot.data!.docs.map((doc) => Event.fromFirestore(doc)).toList();
+        final List<Event> allEvents = [];
+        for (final doc in snapshot.data!.docs) {
+          try {
+            allEvents.add(Event.fromFirestore(doc));
+          } catch (e) {
+            debugPrint('Пропуснат невалиден event документ ${doc.id}: $e');
+          }
+        }
 
         // Прилагане на филтри
         List<Event> filteredEvents = allEvents.where((event) {
@@ -730,7 +748,8 @@ class _AddEventFormState extends State<AddEventForm> {
           });
 
           // Актуализиране на канала при промяна в заглавието
-          if (widget.event!.title != _titleController.text) {
+          if (widget.event!.channelId.isNotEmpty &&
+              widget.event!.title != _titleController.text) {
             await FirebaseFirestore.instance
                 .collection('event_channels')
                 .doc(widget.event!.channelId)
@@ -1459,59 +1478,83 @@ class _EventDetailPageState extends State<EventDetailPage> {
   void _setUserResponse(UserResponse response) async {
     if (_currentUserId == null) return;
 
-    String eventId = widget.event.id;
-    String channelId = widget.event.channelId;
-    String userId = _currentUserId!;
+    final String eventId = widget.event.id;
+    final String channelId = widget.event.channelId;
+    final String userId = _currentUserId!;
 
-    var eventRef = FirebaseFirestore.instance.collection('events').doc(eventId);
-    var channelRef = FirebaseFirestore.instance.collection('event_channels').doc(channelId);
+    final eventRef = FirebaseFirestore.instance.collection('events').doc(eventId);
+    final channelRef =
+        FirebaseFirestore.instance.collection('event_channels').doc(channelId);
 
-    if (response == UserResponse.attending) {
-      await eventRef.update({
-        'attendees': FieldValue.arrayUnion([userId]),
-        'interested': FieldValue.arrayRemove([userId]),
-      });
-      await channelRef.update({
-        'members': FieldValue.arrayUnion([userId]),
-      });
+    final bool wasAttending = widget.event.attendees.contains(userId);
+    final bool wasInterested = widget.event.interested.contains(userId);
+    final bool toggleOff = (response == UserResponse.attending && wasAttending) ||
+        (response == UserResponse.interested && wasInterested);
+    final UserResponse targetResponse =
+        toggleOff ? UserResponse.none : response;
 
-      // Увеличаване на брояча за събития
-      bool isAlreadyAttending = widget.event.attendees.contains(userId);
-      if (!isAlreadyAttending) {
-        final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
-        await userRef.update({'eventsCount': FieldValue.increment(1)});
+    try {
+      if (targetResponse == UserResponse.attending) {
+        await eventRef.update({
+          'attendees': FieldValue.arrayUnion([userId]),
+          'interested': FieldValue.arrayRemove([userId]),
+        });
+      } else if (targetResponse == UserResponse.interested) {
+        await eventRef.update({
+          'interested': FieldValue.arrayUnion([userId]),
+          'attendees': FieldValue.arrayRemove([userId]),
+        });
+      } else {
+        await eventRef.update({
+          'attendees': FieldValue.arrayRemove([userId]),
+          'interested': FieldValue.arrayRemove([userId]),
+        });
+      }
+
+      if (channelId.isNotEmpty) {
+        if (targetResponse == UserResponse.attending) {
+          await channelRef.set({
+            'members': FieldValue.arrayUnion([userId]),
+          }, SetOptions(merge: true));
+        } else if (wasAttending) {
+          await channelRef.set({
+            'members': FieldValue.arrayRemove([userId]),
+          }, SetOptions(merge: true));
+        }
+      }
+
+      int eventsCountDelta = 0;
+      if (!wasAttending && targetResponse == UserResponse.attending) {
+        eventsCountDelta = 1;
+      } else if (wasAttending && targetResponse != UserResponse.attending) {
+        eventsCountDelta = -1;
+      }
+
+      if (eventsCountDelta != 0) {
+        await FirebaseFirestore.instance.collection('users').doc(userId).set({
+          'eventsCount': FieldValue.increment(eventsCountDelta),
+        }, SetOptions(merge: true));
       }
 
       setState(() {
-        widget.event.attendees.add(userId);
-        widget.event.interested.remove(userId);
-        _checkUserResponse();
-        widget.event.attendingCount = widget.event.attendees.length;
-        widget.event.interestedCount = widget.event.interested.length;
-      });
-
-      Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (context) => MainScaffold(initialIndex: 3),
-          ),
-          (route) => false);
-
-    } else if (response == UserResponse.interested) {
-      await eventRef.update({
-        'interested': FieldValue.arrayUnion([userId]),
-        'attendees': FieldValue.arrayRemove([userId]),
-      });
-      await channelRef.update({
-        'members': FieldValue.arrayRemove([userId]),
-      });
-
-      setState(() {
-        widget.event.interested.add(userId);
         widget.event.attendees.remove(userId);
+        widget.event.interested.remove(userId);
+        if (targetResponse == UserResponse.attending) {
+          widget.event.attendees.add(userId);
+        } else if (targetResponse == UserResponse.interested) {
+          widget.event.interested.add(userId);
+        }
         _checkUserResponse();
         widget.event.attendingCount = widget.event.attendees.length;
         widget.event.interestedCount = widget.event.interested.length;
       });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Грешка при запис на участие: $e'),
+        ),
+      );
     }
   }
 
@@ -1588,11 +1631,33 @@ class Event {
   });
 
   factory Event.fromFirestore(DocumentSnapshot doc) {
-    Map data = doc.data() as Map<String, dynamic>;
+    final Map<String, dynamic> data =
+        (doc.data() as Map<String, dynamic>? ?? {});
+    final dynamic rawDate = data['date'];
+    DateTime parsedDate;
+    if (rawDate is Timestamp) {
+      parsedDate = rawDate.toDate();
+    } else if (rawDate is DateTime) {
+      parsedDate = rawDate;
+    } else if (rawDate is String) {
+      parsedDate = DateTime.tryParse(rawDate) ?? DateTime.now();
+    } else {
+      parsedDate = DateTime.now();
+    }
+
+    final List<String> attendees = (data['attendees'] as List? ?? [])
+        .map((item) => item.toString())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    final List<String> interested = (data['interested'] as List? ?? [])
+        .map((item) => item.toString())
+        .where((item) => item.isNotEmpty)
+        .toList();
+
     return Event(
       id: doc.id,
       title: data['title'] ?? '',
-      date: (data['date'] as Timestamp).toDate(),
+      date: parsedDate,
       imageUrl: data['imageUrl'] ?? '',
       shortDescription: data['shortDescription'] ?? '',
       fullDescription: data['fullDescription'] ?? '',
@@ -1600,12 +1665,12 @@ class Event {
       type: (data['type'] ?? 'event') == 'event'
           ? EventType.event
           : EventType.news,
-      interestedCount: (data['interested'] as List?)?.length ?? 0,
-      attendingCount: (data['attendees'] as List?)?.length ?? 0,
+      interestedCount: interested.length,
+      attendingCount: attendees.length,
       creatorId: data['creatorId'] ?? '',
       channelId: data['channelId'] ?? '',
-      attendees: List<String>.from(data['attendees'] ?? []),
-      interested: List<String>.from(data['interested'] ?? []),
+      attendees: attendees,
+      interested: interested,
     );
   }
 }

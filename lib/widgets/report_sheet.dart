@@ -267,7 +267,7 @@ class _ReportAnimalSheetState extends State<ReportAnimalSheet> {
             controller: _descriptionController,
             maxLines: 3,
             decoration: const InputDecoration(
-              labelText: 'Кратко описание (по желание)',
+              labelText: 'Кратко описание',
             ),
           ),
           const SizedBox(height: 14),

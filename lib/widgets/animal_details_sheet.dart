@@ -91,7 +91,8 @@ class AnimalDetailsSheet extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 12),
           backgroundColor: background ?? scheme.primary,
           foregroundColor: foreground ?? scheme.onPrimary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       if (!expanded) return child;
@@ -148,25 +149,6 @@ class AnimalDetailsSheet extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                if (isRescueTeam)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: scheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      'Екип',
-                      style: TextStyle(
-                        color: scheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
                 IconButton(
                   onPressed: onClose,
                   icon: const Icon(Icons.close_rounded),
@@ -177,7 +159,8 @@ class AnimalDetailsSheet extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                Icon(Icons.person_outline, size: 16, color: scheme.onSurfaceVariant),
+                Icon(Icons.person_outline,
+                    size: 16, color: scheme.onSurfaceVariant),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
