@@ -184,10 +184,19 @@ class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateM
         return;
       }
 
+<<<<<<< HEAD
+=======
+      // Record messenger before any async gap or pop if possible, 
+      // but showing snackbar BEFORE pop is usually safer.
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Записване...')),
         );
+<<<<<<< HEAD
+=======
+        Navigator.pop(context); 
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       }
       
       print("Започва качване в албум...");
@@ -229,6 +238,7 @@ class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateM
 
       if (mounted) {
         _showSuccessSnackbar();
+<<<<<<< HEAD
         Navigator.pop(context);
       }
 
@@ -246,6 +256,16 @@ class _CameraPageState extends State<CameraPage> with SingleTickerProviderStateM
       print("ГРЕШКА при запис в албум: $e");
       if (mounted) {
         _showErrorSnackBar('Грешка при запис: $e');
+=======
+      }
+
+    } catch (e) {
+      print("ГРЕШКА при запис в албум: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Грешка при запис: $e')),
+        );
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       }
     }
   }

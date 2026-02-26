@@ -174,7 +174,7 @@ class _SignupScreenState extends State<SignupScreen>
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      "Регистрация в Спаси Животно",
+                      "Регистрация в Zoodle",
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,

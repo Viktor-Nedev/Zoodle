@@ -91,8 +91,12 @@ class AnimalDetailsSheet extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 12),
           backgroundColor: background ?? scheme.primary,
           foregroundColor: foreground ?? scheme.onPrimary,
+<<<<<<< HEAD
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+=======
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
         ),
       );
       if (!expanded) return child;
@@ -149,6 +153,28 @@ class AnimalDetailsSheet extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
+<<<<<<< HEAD
+=======
+                if (isRescueTeam)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'Екип',
+                      style: TextStyle(
+                        color: scheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                 IconButton(
                   onPressed: onClose,
                   icon: const Icon(Icons.close_rounded),
@@ -159,8 +185,12 @@ class AnimalDetailsSheet extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
+<<<<<<< HEAD
                 Icon(Icons.person_outline,
                     size: 16, color: scheme.onSurfaceVariant),
+=======
+                Icon(Icons.person_outline, size: 16, color: scheme.onSurfaceVariant),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(

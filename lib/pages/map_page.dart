@@ -9,12 +9,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+<<<<<<< HEAD
 import 'package:flutter/services.dart'
     show rootBundle, Clipboard, ClipboardData;
 import 'package:intl/intl.dart';
 
 import '../config/app_config.dart';
 import '../main_scaffold.dart';
+=======
+import 'package:flutter/services.dart' show rootBundle, Clipboard, ClipboardData;
+import 'package:intl/intl.dart';
+
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
 import '../widgets/pulsing_report_button.dart';
 import '../widgets/report_sheet.dart';
 import '../widgets/animal_details_sheet.dart';
@@ -65,13 +71,21 @@ class _MapScreenState extends State<MapScreen>
   User? _currentUser;
   String _userRole = 'user';
   Map<String, dynamic>? _userData;
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
   // Данни за избрания маркер (за страничния панел)
   Map<String, dynamic>? _selectedMarkerData;
   String? _selectedMarkerDocId;
 
+<<<<<<< HEAD
   final String _customStyleUri =
       "mapbox://styles/vikdev/cmgs0el6h00f101qx22dp3odf";
+=======
+  final String _customStyleUri = "mapbox://styles/vikdev/cmgs0el6h00f101qx22dp3odf";
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
   final Map<String, Map<String, dynamic>> _firestoreMarkerData = {};
   final Map<String, String> _annotationIdToDocId = {};
 
@@ -79,12 +93,16 @@ class _MapScreenState extends State<MapScreen>
   StreamSubscription<geo.Position>? _locationSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _markersSubscription;
 
+<<<<<<< HEAD
   final Set<String> _allAnimalFilters = {
     'Ранено',
     'Болно',
     'Изгубено',
     'Опасно'
   };
+=======
+  final Set<String> _allAnimalFilters = {'Ранено', 'Болно', 'Изгубено', 'Опасно'};
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
   Set<String> _activeFilters = {'Ранено', 'Болно', 'Изгубено', 'Опасно'};
   bool _isMapInitialized = false;
   bool _managersReady = false;
@@ -207,10 +225,15 @@ class _MapScreenState extends State<MapScreen>
   Future<void> _initializeWithTimeout() async {
     await Future.any([
       _performInitialization(),
+<<<<<<< HEAD
       Future.delayed(
           const Duration(seconds: 15),
           () =>
               throw TimeoutException('Инициализацията отне твърде много време'))
+=======
+      Future.delayed(const Duration(seconds: 15),
+          () => throw TimeoutException('Инициализацията отне твърде много време'))
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     ]);
   }
 
@@ -234,8 +257,12 @@ class _MapScreenState extends State<MapScreen>
   Future<void> _fallbackToStandardStyle() async {
     try {
       if (_mapCreated && mapboxMap != null) {
+<<<<<<< HEAD
         await mapboxMap!.style
             .setStyleURI("mapbox://styles/vikdev/cmgs0el6h00f101qx22dp3odf");
+=======
+        await mapboxMap!.style.setStyleURI("mapbox://styles/vikdev/cmgs0el6h00f101qx22dp3odf");
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
         await _goToMyLocation();
       }
     } catch (e) {
@@ -299,6 +326,7 @@ class _MapScreenState extends State<MapScreen>
         _dataMarkersManager != null) {
       return;
     }
+<<<<<<< HEAD
     _myLocationManager =
         await mapboxMap!.annotations.createCircleAnnotationManager();
     _dataMarkersManager =
@@ -306,6 +334,14 @@ class _MapScreenState extends State<MapScreen>
 
     _dataMarkersManager?.addOnPointAnnotationClickListener(
         MyPointAnnotationClickListener(_handleMarkerClick));
+=======
+    _myLocationManager = await mapboxMap!.annotations.createCircleAnnotationManager();
+    _dataMarkersManager = await mapboxMap!.annotations.createPointAnnotationManager();
+
+    _dataMarkersManager?.addOnPointAnnotationClickListener(
+      MyPointAnnotationClickListener(_handleMarkerClick)
+    );
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     _managersReady = true;
   }
 
@@ -314,7 +350,11 @@ class _MapScreenState extends State<MapScreen>
     print("Натиснат е маркер с ID: ${annotation.id}");
     try {
       final docId = _annotationIdToDocId[annotation.id];
+<<<<<<< HEAD
 
+=======
+      
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       if (docId != null) {
         final data = _firestoreMarkerData[docId];
         if (data != null) {
@@ -335,8 +375,13 @@ class _MapScreenState extends State<MapScreen>
   void _loadMarkersFromFirestore() {
     if (_dataMarkersManager == null) return;
 
+<<<<<<< HEAD
     Query<Map<String, dynamic>> query =
         FirebaseFirestore.instance.collection('animal_reports');
+=======
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collection('animal_reports');
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
 
     if (_activeFilters.isNotEmpty) {
       query = query.where('status', whereIn: _activeFilters.toList());
@@ -354,6 +399,7 @@ class _MapScreenState extends State<MapScreen>
         final data = doc.data();
         final location = data['location'] as GeoPoint?;
         if (location == null) continue;
+<<<<<<< HEAD
 
         String docId = doc.id;
         _firestoreMarkerData[docId] = data;
@@ -369,6 +415,21 @@ class _MapScreenState extends State<MapScreen>
         }
       }
 
+=======
+        
+        String docId = doc.id;
+        _firestoreMarkerData[docId] = data;
+        
+        final options = _getMarkerOptions(data, location.latitude, location.longitude);
+        final annotation = await _dataMarkersManager?.create(options);
+        
+        if (annotation != null) {
+          _annotationIdToDocId[annotation.id] = docId;
+          print("Създаден маркер: annotationId=${annotation.id} -> docId=$docId (${data['status']})");
+        }
+      }
+      
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       print("Заредени ${_firestoreMarkerData.length} маркера от Firestore");
       print("Annotation mapping size: ${_annotationIdToDocId.length}");
     }, onError: (error) {
@@ -380,7 +441,11 @@ class _MapScreenState extends State<MapScreen>
   PointAnnotationOptions _getMarkerOptions(
       Map<String, dynamic> data, double lat, double lng) {
     String status = data['status'] ?? 'Опасно';
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     return PointAnnotationOptions(
       geometry: Point(coordinates: Position(lng.toDouble(), lat.toDouble())),
       image: _markerImages[status],
@@ -401,6 +466,7 @@ class _MapScreenState extends State<MapScreen>
       _isLoading = true;
     });
 
+<<<<<<< HEAD
     String imageUrl =
         "https://placehold.co/600x400/666666/FFFFFF?text=Няма+Снимка";
 
@@ -412,6 +478,16 @@ class _MapScreenState extends State<MapScreen>
         String fileName =
             'reports/${_currentUser!.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
+=======
+    String imageUrl = "https://placehold.co/600x400/666666/FFFFFF?text=Няма+Снимка";
+
+    if (imageFile != null) {
+      try {
+        print("Започва качване на снимка... Баскет: zoodle-be9c3.firebasestorage.app");
+
+        String fileName = 'reports/${_currentUser!.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
         // Опростяване на инициализацията - използваме стандартната инстанция
         Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
 
@@ -421,10 +497,15 @@ class _MapScreenState extends State<MapScreen>
 
         uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
           if (mounted) {
+<<<<<<< HEAD
             double progress =
                 (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
             print(
                 'Прогрес на качване: ${progress.toStringAsFixed(1)}% (State: ${snapshot.state})');
+=======
+            double progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            print('Прогрес на качване: ${progress.toStringAsFixed(1)}% (State: ${snapshot.state})');
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
           }
         }, onError: (e) {
           print("ГРЕШКА по време на стрийм на качване: $e");
@@ -433,6 +514,10 @@ class _MapScreenState extends State<MapScreen>
         TaskSnapshot snapshot = await uploadTask;
         imageUrl = await snapshot.ref.getDownloadURL();
         print('Снимката е качена успешно! URL: $imageUrl');
+<<<<<<< HEAD
+=======
+
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       } catch (e) {
         print("ГРЕШКА при качване на снимка: $e");
         if (mounted) {
@@ -444,10 +529,17 @@ class _MapScreenState extends State<MapScreen>
     }
 
     try {
+<<<<<<< HEAD
       DocumentReference docRef =
           await FirebaseFirestore.instance.collection('animal_reports').add({
         'reporterId': _currentUser!.uid,
         'userId': _currentUser!.uid,
+=======
+      DocumentReference docRef = await FirebaseFirestore.instance
+          .collection('animal_reports')
+          .add({
+        'reporterId': _currentUser!.uid,
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
         'reporterName': _userData?['username'] ?? 'Анонимен',
         'status': status,
         'description': description,
@@ -459,8 +551,12 @@ class _MapScreenState extends State<MapScreen>
 
       print('Документът е записан във Firestore с ID: ${docRef.id}');
 
+<<<<<<< HEAD
       final userRef =
           FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid);
+=======
+      final userRef = FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid);
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       await userRef.update({'reportsCount': FieldValue.increment(1)});
 
       if (mounted) {
@@ -482,8 +578,12 @@ class _MapScreenState extends State<MapScreen>
   // Навигиране до текущата локация
   Future<void> _goToMyLocation() async {
     try {
+<<<<<<< HEAD
       geo.LocationPermission permission =
           await geo.Geolocator.checkPermission();
+=======
+      geo.LocationPermission permission = await geo.Geolocator.checkPermission();
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       if (permission == geo.LocationPermission.denied) {
         permission = await geo.Geolocator.requestPermission();
       }
@@ -504,15 +604,23 @@ class _MapScreenState extends State<MapScreen>
       if (_mapCreated && mapboxMap != null) {
         mapboxMap!.flyTo(
           CameraOptions(
+<<<<<<< HEAD
             center: Point(
                 coordinates: Position(position.longitude.toDouble(),
                     position.latitude.toDouble())),
+=======
+            center: Point(coordinates: Position(position.longitude.toDouble(), position.latitude.toDouble())),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
             zoom: 14.0,
           ),
           MapAnimationOptions(duration: 1500),
         );
         _addMyLocationMarker(position.latitude, position.longitude);
       }
+<<<<<<< HEAD
+=======
+
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     } catch (e) {
       print("Грешка при вземане на локация: $e");
       _goToDefaultLocation();
@@ -558,11 +666,19 @@ class _MapScreenState extends State<MapScreen>
 
   void _showMessage(String message) {
     if (!mounted) return;
+<<<<<<< HEAD
 
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
+=======
+    
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message), 
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
         duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
       ),
@@ -577,8 +693,12 @@ class _MapScreenState extends State<MapScreen>
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Padding(
+<<<<<<< HEAD
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+=======
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
           child: ReportAnimalSheet(
             onSubmit: (status, description, imageFile) {
               Navigator.pop(context);
@@ -591,8 +711,12 @@ class _MapScreenState extends State<MapScreen>
                   _currentPosition!.longitude,
                 );
               } else {
+<<<<<<< HEAD
                 _showMessage(
                     "Текущата локация е неизвестна. Моля, активирайте GPS.");
+=======
+                _showMessage("Текущата локация е неизвестна. Моля, активирайте GPS.");
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
               }
             },
           ),
@@ -617,8 +741,12 @@ class _MapScreenState extends State<MapScreen>
             return Container(
               decoration: BoxDecoration(
                 color: scheme.surface,
+<<<<<<< HEAD
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(24)),
+=======
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
               ),
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
               child: Column(
@@ -726,9 +854,14 @@ class _MapScreenState extends State<MapScreen>
       }
 
       final reporterId = data['reporterId'] ?? '';
+<<<<<<< HEAD
       final canDelete =
           _userRole == 'zoologist' || reporterId == _currentUser?.uid;
 
+=======
+      final canDelete = _userRole == 'zoologist' || reporterId == _currentUser?.uid;
+      
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       if (!canDelete) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -742,16 +875,26 @@ class _MapScreenState extends State<MapScreen>
       }
 
       print("Опит за изтриване на документ: $docId");
+<<<<<<< HEAD
 
+=======
+      
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       await FirebaseFirestore.instance
           .collection('animal_reports')
           .doc(docId)
           .delete();
 
       print("Документът е изтрит успешно: $docId");
+<<<<<<< HEAD
 
       _loadMarkersFromFirestore();
 
+=======
+      
+      _loadMarkersFromFirestore();
+      
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       if (context.mounted) {
         _clearMarkerSelection();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -761,9 +904,16 @@ class _MapScreenState extends State<MapScreen>
           ),
         );
       }
+<<<<<<< HEAD
     } catch (e) {
       print("Грешка при изтриване: $e");
 
+=======
+      
+    } catch (e) {
+      print("Грешка при изтриване: $e");
+      
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -772,7 +922,11 @@ class _MapScreenState extends State<MapScreen>
           ),
         );
       }
+<<<<<<< HEAD
 
+=======
+      
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       if (Navigator.canPop(context)) {
         Navigator.pop(context);
       }
@@ -781,6 +935,7 @@ class _MapScreenState extends State<MapScreen>
 
   // Навигиране към чат
   void _navigateToChat(String reporterId, String reporterName) async {
+<<<<<<< HEAD
     final cleanReporterId = reporterId.trim();
     if (_currentUser == null || cleanReporterId.isEmpty) return;
 
@@ -791,10 +946,19 @@ class _MapScreenState extends State<MapScreen>
         : reporterName.trim();
 
     if (myId == cleanReporterId) {
+=======
+    if (_currentUser == null || reporterId.isEmpty) return;
+
+    String myId = _currentUser!.uid;
+    String myName = _userData?['username'] ?? 'Потребител';
+
+    if (myId == reporterId) {
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       _showMessage("Не можете да започнете чат със себе си.");
       return;
     }
 
+<<<<<<< HEAD
     String chatId = myId.compareTo(cleanReporterId) > 0
         ? '${myId}_$cleanReporterId'
         : '${cleanReporterId}_$myId';
@@ -807,6 +971,22 @@ class _MapScreenState extends State<MapScreen>
         'members': [myId, cleanReporterId],
         'memberNames': {myId: myName, cleanReporterId: cleanReporterName},
         'memberRoles': {myId: myRole, cleanReporterId: reporterRole},
+=======
+    String chatId = myId.compareTo(reporterId) > 0 ? '${myId}_$reporterId' : '${reporterId}_$myId';
+
+    try {
+      // Вземане на ролите на двамата потребители
+      final myDoc = await FirebaseFirestore.instance.collection('users').doc(myId).get();
+      final reporterDoc = await FirebaseFirestore.instance.collection('users').doc(reporterId).get();
+      
+      final myRole = myDoc.data()?['role'] ?? 'user';
+      final reporterRole = reporterDoc.data()?['role'] ?? 'user';
+
+      await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
+        'members': [myId, reporterId],
+        'memberNames': {myId: myName, reporterId: reporterName},
+        'memberRoles': {myId: myRole, reporterId: reporterRole},
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
         'lastMessage': '',
         'lastMessageTimestamp': Timestamp.now(),
         'createdAt': Timestamp.now(),
@@ -815,23 +995,38 @@ class _MapScreenState extends State<MapScreen>
       print("Чат създаден успешно: $chatId (без автоматично съобщение)");
 
       if (!mounted) return;
+<<<<<<< HEAD
 
       _clearMarkerSelection();
 
+=======
+      
+      _clearMarkerSelection();
+      
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => ChatDetailPage(
             channel: ChatChannel(
               id: chatId,
+<<<<<<< HEAD
               name: cleanReporterName,
+=======
+              name: reporterName,
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
               members: 2,
               lastMessage: '',
               time: DateFormat('HH:mm').format(DateTime.now()),
               unread: 0,
               isOnline: true,
+<<<<<<< HEAD
               otherUserId: cleanReporterId,
               otherUserName: cleanReporterName,
+=======
+              otherUserId: reporterId,
+              otherUserName: reporterName,
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
             ),
             collectionPath: 'chats',
           ),
@@ -839,6 +1034,7 @@ class _MapScreenState extends State<MapScreen>
       );
     } catch (e) {
       print("Грешка при създаване на чат: $e");
+<<<<<<< HEAD
       _showMessage(
           "Неуспешно стартиране на чат. Моля, проверете правилата за достъп.");
       if (mounted) {
@@ -849,16 +1045,27 @@ class _MapScreenState extends State<MapScreen>
           ),
         );
       }
+=======
+      _showMessage("Неуспешно стартиране на чат. Моля, проверете правилата за достъп.");
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     }
   }
 
   // Стартиране на навигация
+<<<<<<< HEAD
   void _launchNavigation(
       BuildContext context, double latitude, double longitude) async {
     try {
       final coordinates = '$latitude,$longitude';
       await Clipboard.setData(ClipboardData(text: coordinates));
 
+=======
+  void _launchNavigation(BuildContext context, double latitude, double longitude) async {
+    try {
+      final coordinates = '$latitude,$longitude';
+      await Clipboard.setData(ClipboardData(text: coordinates));
+      
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -874,6 +1081,7 @@ class _MapScreenState extends State<MapScreen>
 
       Uri uri;
       if (Platform.isAndroid) {
+<<<<<<< HEAD
         uri = Uri.parse(
             'https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude&travelmode=driving&dir_action=navigate');
       } else if (Platform.isIOS) {
@@ -882,6 +1090,13 @@ class _MapScreenState extends State<MapScreen>
       } else {
         uri = Uri.parse(
             'https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude&travelmode=driving');
+=======
+        uri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude&travelmode=driving&dir_action=navigate');
+      } else if (Platform.isIOS) {
+        uri = Uri.parse('https://maps.apple.com/?daddr=$latitude,$longitude&dirflg=d&t=m');
+      } else {
+        uri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude&travelmode=driving');
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       }
 
       if (await canLaunchUrl(uri)) {
@@ -889,8 +1104,12 @@ class _MapScreenState extends State<MapScreen>
         return;
       }
 
+<<<<<<< HEAD
       Uri fallbackUri = Uri.parse(
           'https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude');
+=======
+      Uri fallbackUri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude');
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       if (await canLaunchUrl(fallbackUri)) {
         await launchUrl(fallbackUri, mode: LaunchMode.externalApplication);
         return;
@@ -899,8 +1118,12 @@ class _MapScreenState extends State<MapScreen>
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
+<<<<<<< HEAD
             content: Text(
                 'Неуспешно стартиране на навигация. Координатите са копирани: $coordinates'),
+=======
+            content: Text('Неуспешно стартиране на навигация. Координатите са копирани: $coordinates'),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
             duration: const Duration(seconds: 5),
           ),
         );
@@ -910,8 +1133,12 @@ class _MapScreenState extends State<MapScreen>
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
+<<<<<<< HEAD
             content:
                 Text('Грешка при стартиране на навигацията: ${e.toString()}'),
+=======
+            content: Text('Грешка при стартиране на навигацията: ${e.toString()}'),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
             duration: const Duration(seconds: 5),
           ),
         );
@@ -958,8 +1185,12 @@ class _MapScreenState extends State<MapScreen>
                 leading: Icon(Icons.map, color: scheme.primary),
                 title: const Text('Стандартен'),
                 onTap: () {
+<<<<<<< HEAD
                   _changeMapStyle(
                       "mapbox://styles/vikdev/cmgs0el6h00f101qx22dp3odf");
+=======
+                  _changeMapStyle("mapbox://styles/vikdev/cmgs0el6h00f101qx22dp3odf");
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                   Navigator.pop(context);
                 },
               ),
@@ -1117,6 +1348,7 @@ class _MapScreenState extends State<MapScreen>
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+<<<<<<< HEAD
     if (!AppConfig.hasMapboxToken) {
       return Scaffold(
         appBar: AppBar(
@@ -1151,6 +1383,8 @@ class _MapScreenState extends State<MapScreen>
         ),
       );
     }
+=======
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     return Scaffold(
       appBar: AppBar(
         title: const Text("Карта и сигнали"),
@@ -1185,8 +1419,12 @@ class _MapScreenState extends State<MapScreen>
                     const SizedBox(height: 20),
                     Text(
                       'Зареждане на картата...',
+<<<<<<< HEAD
                       style: TextStyle(
                           fontSize: 16, color: scheme.onSurfaceVariant),
+=======
+                      style: TextStyle(fontSize: 16, color: scheme.onSurfaceVariant),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                     ),
                   ],
                 ),
@@ -1199,7 +1437,11 @@ class _MapScreenState extends State<MapScreen>
           ), */
           _buildBottomUI(),
           _buildLegend(),
+<<<<<<< HEAD
 
+=======
+          
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
           // Панел с информация (страничен)
           if (_selectedMarkerData != null && _selectedMarkerDocId != null)
             Positioned(
@@ -1212,14 +1454,19 @@ class _MapScreenState extends State<MapScreen>
                   isRescueTeam: _userRole == 'zoologist',
                   onNavigate: () {
                     GeoPoint location = _selectedMarkerData!['location'];
+<<<<<<< HEAD
                     _launchNavigation(
                         context, location.latitude, location.longitude);
+=======
+                    _launchNavigation(context, location.latitude, location.longitude);
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                   },
                   onRemove: () {
                     final docId = _selectedMarkerDocId!;
                     _clearMarkerSelection();
                     _removeMarker(context, docId);
                   },
+<<<<<<< HEAD
                   canDelete: _userRole == 'zoologist' ||
                       ((_selectedMarkerData!['reporterId'] ??
                                   _selectedMarkerData!['userId'] ??
@@ -1250,6 +1497,15 @@ class _MapScreenState extends State<MapScreen>
                       _showMessage('Липсва идентификатор на подателя.');
                       return;
                     }
+=======
+                  canDelete: _userRole == 'zoologist' || 
+                            (_selectedMarkerData!['reporterId'] == _currentUser?.uid),
+                  showChatButton: _selectedMarkerData!['reporterId'] != _currentUser?.uid && 
+                                 (_selectedMarkerData!['reporterId'] ?? '').isNotEmpty,
+                  onChat: () {
+                    final reporterId = _selectedMarkerData!['reporterId'];
+                    final reporterName = _selectedMarkerData!['reporterName'] ?? 'Неизвестен';
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                     _clearMarkerSelection();
                     _navigateToChat(reporterId, reporterName);
                   },

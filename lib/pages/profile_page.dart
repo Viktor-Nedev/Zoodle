@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 import 'dart:io';
 import 'dart:math';
 
+=======
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+<<<<<<< HEAD
 import 'package:url_launcher/url_launcher.dart';
 
 import '../main.dart';
@@ -16,6 +20,77 @@ import '../pages/badges_page.dart';
 import 'events_page.dart' as events_model;
 import '../widgets/full_screen_image_viewer.dart';
 
+=======
+import 'dart:io';
+
+import 'package:url_launcher/url_launcher.dart';
+
+import '../main.dart';
+import 'events_page.dart' as events_model;
+import '../widgets/full_screen_image_viewer.dart';
+
+// Модел за мисии и баджове
+class BadgeMission {
+  final String id;
+  final String name;
+  final String description;
+  final IconData icon;
+  final Color color;
+  final String statKey;
+  final int goal;
+
+  const BadgeMission({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.icon,
+    required this.color,
+    required this.statKey,
+    required this.goal,
+  });
+}
+
+// Дефиниране на всички мисии
+final List<BadgeMission> allMissions = [
+  BadgeMission(
+    id: 'report1',
+    name: 'Подай 1 сигнал',
+    description: 'Първа стъпка към промяната.',
+    icon: Icons.flag,
+    color: Colors.blue,
+    statKey: 'reportsCount',
+    goal: 1,
+  ),
+  BadgeMission(
+    id: 'report5',
+    name: 'Картограф',
+    description: 'Докладвай 5 животни',
+    icon: Icons.map,
+    color: Colors.green,
+    statKey: 'reportsCount',
+    goal: 5,
+  ),
+  BadgeMission(
+    id: 'event1',
+    name: 'Включи се в събитие',
+    description: 'Доброволческа активност.',
+    icon: Icons.people,
+    color: Colors.purple,
+    statKey: 'eventsCount',
+    goal: 1,
+  ),
+  BadgeMission(
+    id: 'scan1',
+    name: 'Изследовател',
+    description: 'Сканирай 1 животно с AI',
+    icon: Icons.camera_alt,
+    color: Colors.amber,
+    statKey: 'scansCount',
+    goal: 1,
+  ),
+];
+
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
 // Основна страница за профил
 class ProfilePage extends StatefulWidget {
   final String? userId;
@@ -26,9 +101,13 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+<<<<<<< HEAD
   static const int _activeMissionsTarget = 4;
 
   List<MissionBadge> _earnedBadges = [];
+=======
+  List<Badge> _earnedBadges = [];
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
   User? _currentUser;
   Map<String, dynamic>? _userData;
   CalendarFormat _calendarFormat = CalendarFormat.month;
@@ -37,17 +116,23 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<DateTime, List<events_model.Event>> _myEvents = {};
   List<events_model.Event> _selectedEvents = [];
   bool _isLoading = true;
+<<<<<<< HEAD
   Map<String, int> _badgeCounts = {};
   String? _selectedBadgeId;
   List<String> _activeMissionIds = [];
   int _completedMissionsCount = 0;
+=======
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
 
   // Контролери за контакт формата
   final _contactNameController = TextEditingController();
   final _contactEmailController = TextEditingController();
   final _contactMessageController = TextEditingController();
   bool _isSendingMessage = false;
+<<<<<<< HEAD
   bool _isProfilePhotoSheetOpen = false;
+=======
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
 
   @override
   void initState() {
@@ -70,6 +155,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _isLoading = true;
     });
 
+<<<<<<< HEAD
     String targetUserId = '';
     if (widget.userId == null) {
       final user = await _getCurrentUserWithRetry();
@@ -86,6 +172,9 @@ class _ProfilePageState extends State<ProfilePage> {
       targetUserId = widget.userId ?? '';
     }
 
+=======
+    String targetUserId = widget.userId ?? FirebaseAuth.instance.currentUser?.uid ?? '';
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     if (targetUserId.isEmpty) {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -93,6 +182,7 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
 
+<<<<<<< HEAD
     Map<String, dynamic>? loadedUserData;
     Map<DateTime, List<events_model.Event>> fetchedEvents = {};
     List<MissionBadge> badgesToShow = [];
@@ -100,6 +190,17 @@ class _ProfilePageState extends State<ProfilePage> {
     String? selectedBadgeId;
     List<String> activeMissionIds = List<String>.from(_activeMissionIds);
     int completedMissionsCount = _completedMissionsCount;
+=======
+    if (widget.userId == null) {
+      _currentUser = FirebaseAuth.instance.currentUser;
+    } else {
+      _currentUser = null;
+    }
+
+    Map<String, dynamic>? loadedUserData;
+    Map<DateTime, List<events_model.Event>> fetchedEvents = {};
+    List<Badge> badgesToShow = [];
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
 
     try {
       // Зареждане на потребителски данни
@@ -114,11 +215,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
       // Зареждане на събития само за собствения профил
       if (widget.userId == null) {
+<<<<<<< HEAD
         final QuerySnapshot attendingSnapshot = await FirebaseFirestore.instance
+=======
+        QuerySnapshot eventSnapshot = await FirebaseFirestore.instance
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
             .collection('events')
             .where('attendees', arrayContains: targetUserId)
             .get();
 
+<<<<<<< HEAD
         final QuerySnapshot interestedSnapshot = await FirebaseFirestore.instance
             .collection('events')
             .where('interested', arrayContains: targetUserId)
@@ -139,6 +245,10 @@ class _ProfilePageState extends State<ProfilePage> {
         }
 
         for (final event in uniqueEvents.values) {
+=======
+        for (var doc in eventSnapshot.docs) {
+          var event = events_model.Event.fromFirestore(doc);
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
           DateTime eventDate =
               DateTime(event.date.year, event.date.month, event.date.day);
           if (fetchedEvents[eventDate] == null) {
@@ -150,6 +260,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       // Обработка на мисии и баджове
       if (loadedUserData != null) {
+<<<<<<< HEAD
         final int reportsCount =
             (loadedUserData['reportsCount'] as num?)?.toInt() ?? 0;
         final int scansCount =
@@ -157,11 +268,18 @@ class _ProfilePageState extends State<ProfilePage> {
         final int eventsCount =
             (loadedUserData['eventsCount'] as num?)?.toInt() ?? 0;
         final Map<String, int> userStats = {
+=======
+        int reportsCount = loadedUserData['reportsCount'] ?? 0;
+        int scansCount = loadedUserData['scansCount'] ?? 0;
+        int eventsCount = loadedUserData['eventsCount'] ?? 0;
+        Map<String, int> userStats = {
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
           'reportsCount': reportsCount,
           'scansCount': scansCount,
           'eventsCount': eventsCount,
         };
 
+<<<<<<< HEAD
         final bool isOwner = widget.userId == null;
         activeMissionIds =
             _extractStringList(loadedUserData['activeMissionIds']);
@@ -287,6 +405,21 @@ class _ProfilePageState extends State<ProfilePage> {
           completedMissionsCount: completedMissionsCount,
         );
       }
+=======
+        for (var mission in allMissions) {
+          int userProgress = userStats[mission.statKey] ?? 0;
+          bool isEarned = userProgress >= mission.goal;
+          badgesToShow.add(Badge(
+            name: mission.name,
+            description: mission.description,
+            icon: mission.icon,
+            color: mission.color,
+            earned: isEarned,
+          ));
+        }
+      }
+
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     } catch (e) {
       print("Грешка при зареждане на профил: $e");
     } finally {
@@ -297,16 +430,20 @@ class _ProfilePageState extends State<ProfilePage> {
           _selectedDay = _focusedDay;
           _selectedEvents = _getEventsForDay(_selectedDay!);
           _earnedBadges = badgesToShow;
+<<<<<<< HEAD
           _badgeCounts = badgeCounts;
           _selectedBadgeId = selectedBadgeId;
           _activeMissionIds = activeMissionIds;
           _completedMissionsCount = completedMissionsCount;
+=======
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
           _isLoading = false;
         });
       }
     }
   }
 
+<<<<<<< HEAD
   Future<User?> _getCurrentUserWithRetry() async {
     var user = FirebaseAuth.instance.currentUser;
     if (user != null) return user;
@@ -414,6 +551,8 @@ class _ProfilePageState extends State<ProfilePage> {
     }, SetOptions(merge: true));
   }
 
+=======
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
   List<events_model.Event> _getEventsForDay(DateTime day) {
     return _myEvents[DateTime(day.year, day.month, day.day)] ?? [];
   }
@@ -481,8 +620,12 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 24),
               ListTile(
+<<<<<<< HEAD
                 leading:
                     const Icon(Icons.mail_outline, color: Color(0xFF0B8457)),
+=======
+                leading: const Icon(Icons.mail_outline, color: Color(0xFF0B8457)),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                 title: const Text('Свържи се с нас'),
                 onTap: () {
                   Navigator.pop(context);
@@ -498,8 +641,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 },
               ),
               SwitchListTile(
+<<<<<<< HEAD
                 secondary: const Icon(Icons.brightness_6_outlined,
                     color: Color(0xFF0B8457)),
+=======
+                secondary: const Icon(Icons.brightness_6_outlined, color: Color(0xFF0B8457)),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                 title: const Text('Тъмна тема'),
                 value: AnimalRescueApp.of(context).themeMode == ThemeMode.dark,
                 onChanged: (value) {
@@ -509,8 +656,12 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               ListTile(
                 leading: const Icon(Icons.logout, color: Colors.amber),
+<<<<<<< HEAD
                 title:
                     const Text('Изход', style: TextStyle(color: Colors.amber)),
+=======
+                title: const Text('Изход', style: TextStyle(color: Colors.amber)),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                 onTap: () async {
                   Navigator.pop(context);
                   await FirebaseAuth.instance.signOut();
@@ -524,6 +675,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+<<<<<<< HEAD
   // Основна профилна страница
   Widget _buildProfilePage() {
     return RefreshIndicator(
@@ -543,6 +695,23 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 18),
             _buildCalendarSection(),
           ],
+=======
+
+
+  // Основна профилна страница
+  Widget _buildProfilePage() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildProfileInfo(),
+          const SizedBox(height: 24),
+          if (widget.userId == null) _buildAlbumSection(),
+          if (widget.userId == null) const SizedBox(height: 24),
+          if (widget.userId == null) _buildMissionsSection(),
+          if (widget.userId == null) const SizedBox(height: 24),
+          if (widget.userId == null) _buildCalendarSection(),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
         ],
       ),
     );
@@ -550,6 +719,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // Информация за профила
   Widget _buildProfileInfo() {
+<<<<<<< HEAD
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final int uniqueBadges =
@@ -772,6 +942,93 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 );
               },
+=======
+    int earnedBadges = _earnedBadges.where((badge) => badge.earned).length;
+    String userTitle = _getUserTitle(earnedBadges);
+    String username = _userData?['username'] ?? 'Няма име';
+    int reportsCount = _userData?['reportsCount'] ?? 0;
+    int scansCount = _userData?['scansCount'] ?? 0;
+    int eventsCount = _userData?['eventsCount'] ?? 0;
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.green[100],
+                  backgroundImage: _userData?['profilePictureUrl'] != null &&
+                          _userData!['profilePictureUrl'].isNotEmpty
+                      ? CachedNetworkImageProvider(_userData!['profilePictureUrl'])
+                      : null,
+                  child: _userData?['profilePictureUrl'] == null ||
+                          _userData!['profilePictureUrl'].isEmpty
+                      ? Icon(
+                          Icons.person,
+                          size: 60,
+                          color: Colors.green[700],
+                        )
+                      : null,
+                ),
+                if (widget.userId == null)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.green[700],
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.camera_alt,
+                            size: 16, color: Colors.white),
+                        onPressed: _changeProfilePicture,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              username,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.green[800],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.green[100],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                userTitle,
+                style: TextStyle(
+                  color: Colors.green[800],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildStatItem('Докладвани', reportsCount.toString(), Icons.flag),
+                _buildStatItem('Сканирани', scansCount.toString(), Icons.camera_alt),
+                _buildStatItem('Събития', eventsCount.toString(), Icons.event),
+                _buildStatItem('Баджове', earnedBadges.toString(), Icons.emoji_events),
+              ],
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
             ),
           ],
         ),
@@ -784,6 +1041,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (user == null) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
 
+<<<<<<< HEAD
     return Container(
       decoration: BoxDecoration(
         color: scheme.surface,
@@ -806,6 +1064,22 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(Icons.auto_awesome_rounded, color: scheme.primary),
+=======
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(Icons.photo_library_outlined, color: scheme.primary),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -814,6 +1088,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   Text(
                     'Zoodle AI Албум',
+<<<<<<< HEAD
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
@@ -824,15 +1099,35 @@ class _ProfilePageState extends State<ProfilePage> {
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),
+=======
+                    style: TextStyle(
+                      color: scheme.onSurface,
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Разгледай запазените AI снимки в профила.',
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 10),
+<<<<<<< HEAD
             FilledButton.tonalIcon(
               onPressed: _openAlbumPage,
               icon: const Icon(Icons.open_in_new_rounded, size: 18),
               label: const Text('Отвори'),
+=======
+            ElevatedButton(
+              onPressed: _openAlbumPage,
+              child: const Text('Отвори'),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
             ),
           ],
         ),
@@ -840,6 +1135,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+<<<<<<< HEAD
   Widget _buildMissionsSummaryCard() {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
@@ -931,6 +1227,8 @@ class _ProfilePageState extends State<ProfilePage> {
     await _loadUserDataAndEvents();
   }
 
+=======
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
   void _openAlbumPage() {
     final user = _currentUser;
     if (user == null) return;
@@ -952,6 +1250,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // Статистически елемент
   Widget _buildStatItem(String label, String value, IconData icon) {
+<<<<<<< HEAD
     if (label == 'Докладвани' &&
         _currentUser != null &&
         widget.userId == null) {
@@ -960,12 +1259,23 @@ class _ProfilePageState extends State<ProfilePage> {
             .collection('users')
             .doc(_currentUser!.uid)
             .snapshots(),
+=======
+    if (label == 'Докладвани') {
+      return StreamBuilder<DocumentSnapshot>(
+        stream: _currentUser != null 
+            ? FirebaseFirestore.instance
+                .collection('users')
+                .doc(_currentUser!.uid)
+                .snapshots()
+            : null,
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
         builder: (context, snapshot) {
           String displayValue = value;
           if (snapshot.hasData && snapshot.data!.exists) {
             var userData = snapshot.data!.data() as Map<String, dynamic>?;
             displayValue = (userData?['reportsCount'] ?? 0).toString();
           }
+<<<<<<< HEAD
           return _buildStatCard(label, displayValue, icon);
         },
       );
@@ -1020,21 +1330,146 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
         ],
+=======
+          
+          return Column(
+            children: [
+              Icon(icon, size: 24, color: Colors.green[700]),
+              const SizedBox(height: 4),
+              Text(
+                displayValue,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green[700],
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+    
+    return Column(
+      children: [
+        Icon(icon, size: 24, color: Colors.green[700]),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.green[700],
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Секция с мисии и баджове
+  Widget _buildMissionsSection() {
+    int earnedCount = _earnedBadges.where((b) => b.earned).length;
+    int totalBadges = allMissions.length;
+    double progress = totalBadges > 0 ? earnedCount / totalBadges : 0;
+    String userTitle = _getUserTitle(earnedCount);
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Мисии',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.green[800],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Твоята титла: $userTitle',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.green[700],
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Прогрес бар
+            LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Colors.grey[200],
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600] ?? Colors.green),
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$earnedCount/$totalBadges изпълнени',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            // Списък с мисии
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _earnedBadges.length,
+              itemBuilder: (context, index) {
+                var badge = _earnedBadges[index];
+                return CheckboxListTile(
+                  title: Text(badge.name,
+                      style: const TextStyle(fontWeight: FontWeight.w500)),
+                  subtitle: Text(badge.description),
+                  value: badge.earned,
+                  onChanged: null,
+                  secondary: Icon(badge.icon,
+                      color: badge.earned ? badge.color : Colors.grey),
+                  activeColor: badge.color,
+                  controlAffinity: ListTileControlAffinity.leading,
+                );
+              },
+            ),
+          ],
+        ),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       ),
     );
   }
 
   // Секция с календар
   Widget _buildCalendarSection() {
+<<<<<<< HEAD
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return Card(
+=======
+    return Card(
+      elevation: 2,
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+<<<<<<< HEAD
             Row(
               children: [
                 Text(
@@ -1157,10 +1592,80 @@ class _ProfilePageState extends State<ProfilePage> {
               style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: scheme.onSurface,
+=======
+            Text(
+              'Моят Календар',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.green[800],
+              ),
+            ),
+            const SizedBox(height: 16),
+            TableCalendar<events_model.Event>(
+              firstDay: DateTime.utc(2020, 1, 1),
+              lastDay: DateTime.utc(2030, 12, 31),
+              focusedDay: _focusedDay,
+              calendarFormat: _calendarFormat,
+              eventLoader: _getEventsForDay,
+              selectedDayPredicate: (day) {
+                return isSameDay(_selectedDay, day);
+              },
+              onDaySelected: (selectedDay, focusedDay) {
+                if (!isSameDay(_selectedDay, selectedDay)) {
+                  setState(() {
+                    _selectedDay = selectedDay;
+                    _focusedDay = focusedDay;
+                    _selectedEvents = _getEventsForDay(selectedDay);
+                  });
+                }
+              },
+              onFormatChanged: (format) {
+                if (_calendarFormat != format) {
+                  setState(() {
+                    _calendarFormat = format;
+                  });
+                }
+              },
+              onPageChanged: (focusedDay) {
+                _focusedDay = focusedDay;
+              },
+              calendarStyle: CalendarStyle(
+                todayDecoration: BoxDecoration(
+                  color: Colors.green[300],
+                  shape: BoxShape.circle,
+                ),
+                selectedDecoration: BoxDecoration(
+                  color: Colors.green[700],
+                  shape: BoxShape.circle,
+                ),
+                markerDecoration: BoxDecoration(
+                  color: Colors.orange[700],
+                  shape: BoxShape.circle,
+                ),
+              ),
+              headerStyle: HeaderStyle(
+                  formatButtonVisible: false,
+                  titleCentered: true,
+                  titleTextStyle: TextStyle(
+                    color: Colors.green[800],
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  )),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Събития на този ден',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.green[700],
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
               ),
             ),
             const SizedBox(height: 8),
             if (_selectedEvents.isEmpty)
+<<<<<<< HEAD
               Container(
                 width: double.infinity,
                 padding:
@@ -1178,6 +1683,11 @@ class _ProfilePageState extends State<ProfilePage> {
               )
             else
               ..._selectedEvents.map(_buildCalendarEvent),
+=======
+              const Text('Няма събития за избрания ден.')
+            else
+              ..._selectedEvents.map(_buildCalendarEvent).toList(),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
           ],
         ),
       ),
@@ -1186,6 +1696,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // Елемент от календара за събитие
   Widget _buildCalendarEvent(events_model.Event event) {
+<<<<<<< HEAD
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final userId = _currentUser?.uid;
@@ -1225,6 +1736,18 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             child: Icon(Icons.event_rounded, size: 20, color: scheme.primary),
           ),
+=======
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.event, size: 20, color: Colors.green[700]),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1232,6 +1755,7 @@ class _ProfilePageState extends State<ProfilePage> {
               children: [
                 Text(
                   event.title,
+<<<<<<< HEAD
                   style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: scheme.onSurface,
@@ -1242,6 +1766,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   style: textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
+=======
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  '${event.date.day}.${event.date.month}.${event.date.year}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                 ),
               ],
             ),
@@ -1249,6 +1780,7 @@ class _ProfilePageState extends State<ProfilePage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
+<<<<<<< HEAD
               color: statusBackground,
               borderRadius: BorderRadius.circular(999),
             ),
@@ -1256,6 +1788,16 @@ class _ProfilePageState extends State<ProfilePage> {
               statusText,
               style: textTheme.labelSmall?.copyWith(
                 color: statusForeground,
+=======
+              color: Colors.green[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'Ще участвам',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.green[800],
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -1265,6 +1807,11 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
   // Диалог за контакт
   void _showContactDialog() {
     showModalBottomSheet(
@@ -1275,6 +1822,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       builder: (context) {
         return DraggableScrollableSheet(
+<<<<<<< HEAD
             initialChildSize: 0.9,
             minChildSize: 0.5,
             maxChildSize: 0.95,
@@ -1318,6 +1866,52 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               );
             });
+=======
+          initialChildSize: 0.9,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+             return SingleChildScrollView(
+              controller: scrollController,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                   Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Text(
+                    'Свържете се с нас',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[800],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Имате въпрос или нужда от помощ? Изпратете ни съобщение!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _buildContactForm(),
+                  const SizedBox(height: 24),
+                  _buildContactInfo(),
+                ],
+              ),
+             );
+          }
+        );
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       },
     );
   }
@@ -1335,8 +1929,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(8),
               ),
               focusedBorder: OutlineInputBorder(
+<<<<<<< HEAD
                 borderSide:
                     BorderSide(color: Colors.green[700] ?? Colors.green),
+=======
+                borderSide: BorderSide(color: Colors.green[700] ?? Colors.green),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
               ),
             ),
           ),
@@ -1349,8 +1947,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(8),
               ),
               focusedBorder: OutlineInputBorder(
+<<<<<<< HEAD
                 borderSide:
                     BorderSide(color: Colors.green[700] ?? Colors.green),
+=======
+                borderSide: BorderSide(color: Colors.green[700] ?? Colors.green),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
               ),
             ),
             keyboardType: TextInputType.emailAddress,
@@ -1364,8 +1966,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(8),
               ),
               focusedBorder: OutlineInputBorder(
+<<<<<<< HEAD
                 borderSide:
                     BorderSide(color: Colors.green[700] ?? Colors.green),
+=======
+                borderSide: BorderSide(color: Colors.green[700] ?? Colors.green),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
               ),
               alignLabelWithHint: true,
             ),
@@ -1437,7 +2043,10 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
 
+<<<<<<< HEAD
     _isProfilePhotoSheetOpen = true;
+=======
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
@@ -1473,8 +2082,12 @@ class _ProfilePageState extends State<ProfilePage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
+<<<<<<< HEAD
                 _buildImageOption(
                     Icons.photo_library, 'Галерия', _pickFromGallery),
+=======
+                _buildImageOption(Icons.photo_library, 'Галерия', _pickFromGallery),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                 _buildImageOption(Icons.photo_camera, 'Камера', _takePhoto),
                 _buildImageOption(Icons.delete, 'Премахни', _removePhoto),
               ],
@@ -1482,9 +2095,13 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
       ),
+<<<<<<< HEAD
     ).whenComplete(() {
       _isProfilePhotoSheetOpen = false;
     });
+=======
+    );
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
   }
 
   // Опция за снимка
@@ -1515,12 +2132,17 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _uploadProfilePicture(ImageSource source) async {
     if (_currentUser == null) return;
     final ImagePicker picker = ImagePicker();
+<<<<<<< HEAD
     final XFile? image =
         await picker.pickImage(source: source, imageQuality: 85);
+=======
+    final XFile? image = await picker.pickImage(source: source, imageQuality: 85);
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     if (image == null) return;
 
     File imageFile = File(image.path);
     try {
+<<<<<<< HEAD
       debugPrint('Започва качване на профилна снимка...');
       String filePath = 'profile_pictures/${_currentUser!.uid}.jpg';
 
@@ -1528,11 +2150,21 @@ class _ProfilePageState extends State<ProfilePage> {
       Reference storageRef = FirebaseStorage.instance.ref().child(filePath);
 
       debugPrint('Път на съхранение: $filePath');
+=======
+      print("Започва качване на профилна снимка...");
+      String filePath = 'profile_pictures/${_currentUser!.uid}.jpg';
+      
+      // Опростяване на инициализацията - използваме стандартната инстанция
+      Reference storageRef = FirebaseStorage.instance.ref().child(filePath);
+
+      print("Път на съхранение: $filePath");
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
 
       UploadTask uploadTask = storageRef.putFile(imageFile);
 
       uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
         if (mounted) {
+<<<<<<< HEAD
           double progress =
               (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           debugPrint(
@@ -1541,11 +2173,22 @@ class _ProfilePageState extends State<ProfilePage> {
         }
       }, onError: (e) {
         debugPrint('ГРЕШКА по време на стрийм на качване: $e');
+=======
+          double progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          print('Прогрес на качване: ${progress.toStringAsFixed(1)}% (State: ${snapshot.state})');
+        }
+      }, onError: (e) {
+        print("ГРЕШКА по време на стрийм на качване: $e");
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       });
 
       TaskSnapshot snapshot = await uploadTask;
       String downloadURL = await snapshot.ref.getDownloadURL();
+<<<<<<< HEAD
       debugPrint('Снимката е качена успешно! URL: $downloadURL');
+=======
+      print('Снимката е качена успешно! URL: $downloadURL');
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
 
       await FirebaseFirestore.instance
           .collection('users')
@@ -1560,6 +2203,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Профилната снимка е обновена!')),
         );
+<<<<<<< HEAD
         if (_isProfilePhotoSheetOpen && Navigator.of(context).canPop()) {
           Navigator.of(context).pop();
         }
@@ -1571,12 +2215,20 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     } catch (e) {
       debugPrint('Грешка при качване на снимка: $e');
+=======
+        Navigator.pop(context);
+      }
+
+    } catch (e) {
+      print("Грешка при качване на снимка: $e");
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
       if (mounted) {
         _showMessage('Грешка: $e');
       }
     }
   }
 
+<<<<<<< HEAD
   String _toUserFriendlyStorageError(FirebaseException e) {
     final rawMessage = (e.message ?? '').toLowerCase();
     final bool isServiceAccountOrSessionIssue =
@@ -1603,6 +2255,8 @@ class _ProfilePageState extends State<ProfilePage> {
     return 'Неуспешно качване към Firebase Storage: ${e.code}.';
   }
 
+=======
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
   void _pickFromGallery() {
     _uploadProfilePicture(ImageSource.gallery);
   }
@@ -1633,9 +2287,13 @@ class _ProfilePageState extends State<ProfilePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Профилната снимка е премахната!')),
       );
+<<<<<<< HEAD
       if (_isProfilePhotoSheetOpen && Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
+=======
+      Navigator.pop(context);
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     }
   }
 
@@ -1748,6 +2406,7 @@ class ProfileAlbumPage extends StatelessWidget {
             .collection('users')
             .doc(userId)
             .collection('album')
+<<<<<<< HEAD
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
@@ -1763,6 +2422,10 @@ class ProfileAlbumPage extends StatelessWidget {
               ),
             );
           }
+=======
+            .snapshots(),
+        builder: (context, snapshot) {
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -1772,10 +2435,15 @@ class ProfileAlbumPage extends StatelessWidget {
 
           final docs = snapshot.data!.docs.toList()
             ..sort((a, b) {
+<<<<<<< HEAD
               final ta =
                   (a['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
               final tb =
                   (b['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+=======
+              final ta = (a['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+              final tb = (b['timestamp'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
               return tb.compareTo(ta);
             });
 
@@ -1784,8 +2452,12 @@ class ProfileAlbumPage extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+<<<<<<< HEAD
                   Icon(Icons.photo_library_outlined,
                       size: 56, color: scheme.outline),
+=======
+                  Icon(Icons.photo_library_outlined, size: 56, color: scheme.outline),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                   const SizedBox(height: 12),
                   Text(
                     'Все още нямате запазени AI снимки.',
@@ -1835,8 +2507,12 @@ class ProfileAlbumPage extends StatelessWidget {
                     children: [
                       Expanded(
                         child: ClipRRect(
+<<<<<<< HEAD
                           borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(16)),
+=======
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
                           child: imageUrl.isEmpty
                               ? Container(
                                   color: scheme.surfaceVariant,
@@ -1905,3 +2581,23 @@ class ProfileAlbumPage extends StatelessWidget {
     );
   }
 }
+<<<<<<< HEAD
+=======
+
+// Модел за бадж
+class Badge {
+  final String name;
+  final String description;
+  final IconData icon;
+  final Color color;
+  final bool earned;
+
+  const Badge({
+    required this.name,
+    required this.description,
+    required this.icon,
+    required this.color,
+    required this.earned,
+  });
+}
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9

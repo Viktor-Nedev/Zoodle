@@ -6,9 +6,15 @@ class AppTheme {
     brightness: Brightness.light,
     primary: Color(0xFF0F7A5C),
     onPrimary: Color(0xFFFFFFFF),
+<<<<<<< HEAD
     primaryContainer: Color(0xFFD7F0A6),
     onPrimaryContainer: Color(0xFF062E22),
     secondary: Color(0xFF239A78),
+=======
+    primaryContainer: Color(0xFFCFF5E6),
+    onPrimaryContainer: Color(0xFF062E22),
+    secondary: Color(0xFF2BAE84),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     onSecondary: Color(0xFFFFFFFF),
     secondaryContainer: Color(0xFFD9F7EC),
     onSecondaryContainer: Color(0xFF063426),
@@ -37,9 +43,15 @@ class AppTheme {
     brightness: Brightness.dark,
     primary: Color(0xFF67D7B2),
     onPrimary: Color(0xFF062E22),
+<<<<<<< HEAD
     primaryContainer: Color(0xFF2E4A1F),
     onPrimaryContainer: Color(0xFFBFF3E0),
     secondary: Color(0xFF2E8C6F),
+=======
+    primaryContainer: Color(0xFF0A4A37),
+    onPrimaryContainer: Color(0xFFBFF3E0),
+    secondary: Color(0xFF3FC59A),
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     onSecondary: Color(0xFF062E22),
     secondaryContainer: Color(0xFF0D3F31),
     onSecondaryContainer: Color(0xFFD9F7EC),
@@ -77,12 +89,21 @@ class AppTheme {
       backgroundColor: _lightScheme.surface,
       foregroundColor: _lightScheme.onSurface,
       elevation: 0,
+<<<<<<< HEAD
       centerTitle: true,
       scrolledUnderElevation: 0,
       titleTextStyle: GoogleFonts.rubik(
         color: _lightScheme.onSurface,
         fontSize: 21,
         fontWeight: FontWeight.w800,
+=======
+      centerTitle: false,
+      scrolledUnderElevation: 0,
+      titleTextStyle: GoogleFonts.spaceGrotesk(
+        color: _lightScheme.onSurface,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
         letterSpacing: 0.2,
       ),
       iconTheme: IconThemeData(color: _lightScheme.onSurface),
@@ -167,12 +188,21 @@ class AppTheme {
       backgroundColor: _darkScheme.surface,
       foregroundColor: _darkScheme.onSurface,
       elevation: 0,
+<<<<<<< HEAD
       centerTitle: true,
       scrolledUnderElevation: 0,
       titleTextStyle: GoogleFonts.rubik(
         color: _darkScheme.onSurface,
         fontSize: 21,
         fontWeight: FontWeight.w800,
+=======
+      centerTitle: false,
+      scrolledUnderElevation: 0,
+      titleTextStyle: GoogleFonts.spaceGrotesk(
+        color: _darkScheme.onSurface,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
         letterSpacing: 0.2,
       ),
       iconTheme: IconThemeData(color: _darkScheme.onSurface),

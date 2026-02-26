@@ -1,15 +1,22 @@
+<<<<<<< HEAD
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+=======
+import 'package:flutter/material.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'auth/login_screen.dart';
 import 'main_scaffold.dart';
 import 'services/notification_service.dart';
 
+<<<<<<< HEAD
 import 'config/app_config.dart';
 import 'theme/app_theme.dart';
 
@@ -133,11 +140,35 @@ class _StartupGateState extends State<_StartupGate> {
       },
     );
   }
+=======
+import 'theme/app_theme.dart';
+
+const String _mapboxAccessToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN');
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Инициализирай Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Инициализирай Mapbox
+  if (_mapboxAccessToken.isEmpty) {
+    throw Exception(
+      'Missing MAPBOX_ACCESS_TOKEN. Run with --dart-define-from-file=.env',
+    );
+  }
+  MapboxOptions.setAccessToken(_mapboxAccessToken);
+
+  runApp(const AnimalRescueApp());
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
 }
 
 class AnimalRescueApp extends StatefulWidget {
   const AnimalRescueApp({super.key});
 
+<<<<<<< HEAD
   static AnimalRescueAppController of(BuildContext context) =>
       context.findAncestorStateOfType<_AnimalRescueAppState>()!;
 
@@ -153,16 +184,35 @@ class _AnimalRescueAppState extends State<AnimalRescueApp>
   ThemeMode get themeMode => _themeMode;
 
   @override
+=======
+  @override
+  static _AnimalRescueAppState of(BuildContext context) =>
+      context.findAncestorStateOfType<_AnimalRescueAppState>()!;
+
+  State<AnimalRescueApp> createState() => _AnimalRescueAppState();
+}
+
+class _AnimalRescueAppState extends State<AnimalRescueApp> {
+  ThemeMode _themeMode = ThemeMode.light;
+
+  ThemeMode get themeMode => _themeMode;
+
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
   void setThemeMode(ThemeMode mode) {
     setState(() {
       _themeMode = mode;
     });
   }
 
+<<<<<<< HEAD
   @override
   void toggleTheme() {
     setThemeMode(
         _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light);
+=======
+  void toggleTheme() {
+    setThemeMode(_themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light);
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
   }
 
   @override
@@ -175,9 +225,15 @@ class _AnimalRescueAppState extends State<AnimalRescueApp>
     try {
       final notificationService = NotificationService();
       await notificationService.initialize();
+<<<<<<< HEAD
       debugPrint('NotificationService initialized successfully');
     } catch (e) {
       debugPrint('Error initializing NotificationService: $e');
+=======
+      print("NotificationService initialized successfully");
+    } catch (e) {
+      print("Error initializing NotificationService: $e");
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     }
   }
 
@@ -203,7 +259,11 @@ class _AnimalRescueAppState extends State<AnimalRescueApp>
 
           if (snapshot.hasData && snapshot.data != null) {
             // Потребителят е логнат -> покажи основния екран
+<<<<<<< HEAD
             debugPrint('Потребителят е логнат: ${snapshot.data!.uid}');
+=======
+            print("Потребителят е логнат: ${snapshot.data!.uid}");
+>>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
             return const MainScaffold();
           }
 
