@@ -33,10 +33,7 @@ dependencies:
   firebase_messaging: ^14.7.10
   flutter_local_notifications: ^17.0.0
   cached_network_image: ^3.3.1
-<<<<<<< HEAD
   flutter_dotenv: ^5.1.0
-=======
->>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
 
 dev_dependencies:
   flutter_test:
@@ -46,18 +43,12 @@ dev_dependencies:
 
 flutter_icons:
   android: true
-<<<<<<< HEAD
   ios: true
-=======
->>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
   image_path: "assets/images/logo.png"
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/
-<<<<<<< HEAD
     - badges/
     - .env
-=======
->>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9

@@ -1,39 +1,27 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-<<<<<<< HEAD
-    // 1. Доклади (Reports)
-=======
     
     // 1. Доклади (Reports)
     // Път в кода: reports/USERID_TIMESTAMP.jpg
->>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     match /reports/{fileName} {
       allow read;
       allow write: if request.auth != null;
     }
 
     // 2. Събития (Events)
-<<<<<<< HEAD
-=======
     // Път в кода: events/TIMESTAMP.jpg
->>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     match /events/{fileName} {
       allow read;
       allow write: if request.auth != null;
     }
 
-<<<<<<< HEAD
-    // 3. Профилни снимки
-=======
     // 3. Профилни снимки (Profile Pictures)
     // Път в кода: profile_pictures/USERID.jpg
->>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
     match /profile_pictures/{fileName} {
       allow read;
       allow write: if request.auth != null;
     }
-<<<<<<< HEAD
 
     // 4. Снимки в чат
     match /chat_images/{channelId}/{fileName} {
@@ -47,7 +35,5 @@ service firebase.storage {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
-=======
->>>>>>> daf5cffc7dddbd691e91900be77907b2d13a96f9
   }
 }
